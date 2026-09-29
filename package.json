@@ -1,0 +1,1 @@
+{"name":"@erp/platform","private":true,"version":"0.1.0","packageManager":"pnpm@10.17.1","engines":{"node":">=22.0.0"},"scripts":{"typecheck":"tsc --noEmit","test":"node --test","validate":"pnpm typecheck && pnpm test"},"devDependencies":{"typescript":"^5.9.2"}}
