@@ -1,0 +1,771 @@
+{
+  "schema_version": "1.0",
+  "project": "ERP",
+  "repository": "fukpdf/ERP",
+  "branch": "erp-development",
+  "baseline_commit": "b398ae159a8e69b784f46dc8d1d0715f552c078a",
+  "baseline_date": "2026-09-29",
+  "source_of_truth": "Git tree at baseline commit",
+  "file_count": 123,
+  "tree_truncated": false,
+  "top_level_entries": [
+    "AUTHENTICATION.md",
+    "AUTHORIZATION.md",
+    "BOT_PROTECTION.md",
+    "BROKEN_ACCESS_CONTROL.md",
+    "CRYPTOGRAPHY.md",
+    "CSRF.md",
+    "DATA_ENCRYPTION.md",
+    "DATA_MASKING.md",
+    "DDOS_PROTECTION.md",
+    "DISCLOSURE_POLICY.md",
+    "ERP-MASTER-IMPLEMENTATION.md",
+    "ERP-REPO-TRACK.md",
+    "ERP-ROADMAP.md",
+    "HIPAA_CONTROLS.md",
+    "HSM.md",
+    "INCIDENT_RESPONSE.md",
+    "INPUT_VALIDATION.md",
+    "ISO27001_CONTROLS.md",
+    "KEY_ROTATION.md",
+    "MANIFEST-STAGE50.md",
+    "MERGE-DECISIONS.md",
+    "OUTPUT_ENCODING.md",
+    "OWASP_TOP_10.md",
+    "PEN_TEST_PLAN.md",
+    "PEN_TEST_REPORT.md",
+    "RATE_LIMITING.md",
+    "README-STAGE18.md",
+    "README.md",
+    "SBOM.md",
+    "SECRETS_MANAGEMENT.md",
+    "SECURITY_SCORECARD.md",
+    "SECURITY_TRAINING.md",
+    "SESSION_MANAGEMENT.md",
+    "SISOFT-MERGE-MANIFEST.txt",
+    "SLSA.md",
+    "SOC2_CONTROLS.md",
+    "SQL_INJECTION.md",
+    "SSRF.md",
+    "THREAT_MODEL.md",
+    "VULNERABILITY_MANAGEMENT.md",
+    "WAF.md",
+    "XSS.md",
+    "XXE.md",
+    "ZERO_TRUST.md",
+    "account-compromise.md",
+    "action.step.spec.ts",
+    "api-abuse.md",
+    "approval.step.spec.ts",
+    "atomic-rbac-mutation.spec.ts",
+    "audit.test.ts",
+    "bpmn-validator.spec.ts",
+    "brute-force.spec.ts",
+    "cel-evaluator.spec.ts",
+    "comparative-analysis.spec.ts",
+    "condition.step.spec.ts",
+    "consent-proof.spec.ts",
+    "control-erp-isolation.spec.ts",
+    "cross-plane-sod.spec.ts",
+    "dashboard-realtime.spec.ts",
+    "data-breach.md",
+    "ddos.md",
+    "definition.service.spec.ts",
+    "delegation.service.spec.ts",
+    "delivery.spec.ts",
+    "digest.spec.ts",
+    "docs-STAGE50-POSTGRESQL-RUNTIME-CATALOG.md",
+    "docs-STAGE52-CLEAN-DATABASE-RUNTIME-EXECUTION.md",
+    "docs-STAGE57-EXCEPTIONS.md",
+    "docs-STAGE58-RELEASE-READINESS.md",
+    "docs-STAGE59-EXCEPTIONS.md",
+    "docs-STAGE61-EXCEPTIONS.md",
+    "docs-STAGE63-EXCEPTIONS.md",
+    "docs-STAGE64-EXCEPTIONS.md",
+    "docs-STAGE66-EXCEPTIONS.md",
+    "docs-STAGE68-GLOBAL-IDENTITY-AUTH-FEDERATION.md",
+    "docs-STAGE70-EXCEPTIONS.md",
+    "documents.e2e-spec.ts",
+    "email.action.spec.ts",
+    "email.channel.spec.ts",
+    "escalation.spec.ts",
+    "executor.spec.ts",
+    "field-permission.spec.ts",
+    "healthcare-role-templates.spec.ts",
+    "in-app.channel.spec.ts",
+    "insider-threat.md",
+    "inventory.invariants.spec.ts",
+    "notifications.e2e-spec.ts",
+    "optimisticLock.test.ts",
+    "permission-cache.spec.ts",
+    "permission-catalog.spec.ts",
+    "permission-key.utils.spec.ts",
+    "permission.guard.spec.ts",
+    "permission.service.spec.ts",
+    "preference.service.spec.ts",
+    "purchase.service.spec.ts",
+    "ransomware.md",
+    "rbac.e2e-spec.ts",
+    "report-executor.spec.ts",
+    "retry.spec.ts",
+    "rls.spec.ts",
+    "rls.test.ts",
+    "role.service.spec.ts",
+    "schema.test.ts",
+    "script.action.spec.ts",
+    "security-bypass.spec.ts",
+    "security-headers.spec.ts",
+    "seeds.test.ts",
+    "sod.service.spec.ts",
+    "softDelete.test.ts",
+    "sql-injection.spec.ts",
+    "step-executor.spec.ts",
+    "supply-chain.md",
+    "surgical-count.spec.ts",
+    "task.service.spec.ts",
+    "test-db.helper.ts",
+    "test-run.spec.ts",
+    "trend-analysis.spec.ts",
+    "trigger.service.spec.ts",
+    "version-compatibility.spec.ts",
+    "version.service.spec.ts",
+    "webhook.action.spec.ts",
+    "widget-data.spec.ts",
+    "workflow.e2e-spec.ts"
+  ],
+  "expected_historical_file_count": 2171,
+  "historical_manifest": "SISOFT-MERGE-MANIFEST.txt",
+  "historical_prisma_model_claim": 193,
+  "runtime_status": "BLOCKED",
+  "runtime_blockers": [
+    "No pnpm-lock.yaml exposed in current tree",
+    "No package.json exposed in current tree",
+    "No prisma/schema.prisma exposed in current tree",
+    "No PostgreSQL/Redis/Docker runtime available through repository-only audit"
+  ],
+  "verification_states": [
+    "IMPLEMENTED",
+    "STATIC-VERIFIED",
+    "RUNTIME-VERIFIED",
+    "BLOCKED",
+    "DOCUMENTED-ONLY",
+    "MISSING"
+  ],
+  "files": [
+    {
+      "path": "AUTHENTICATION.md",
+      "sha": "e78c75423f2137c0f976cbe652c81070a5368f16",
+      "size": 2120
+    },
+    {
+      "path": "AUTHORIZATION.md",
+      "sha": "f74f5d3f81eeb7ccfbe6f50a2f06c37021055300",
+      "size": 1334
+    },
+    {
+      "path": "BOT_PROTECTION.md",
+      "sha": "302745381ed43c91b8cc810dc8ca85d8252b455a",
+      "size": 703
+    },
+    {
+      "path": "BROKEN_ACCESS_CONTROL.md",
+      "sha": "7b958a3571bb59883a60360b307a24ca3364667c",
+      "size": 1586
+    },
+    {
+      "path": "CRYPTOGRAPHY.md",
+      "sha": "bd6d24c1f5ed883047597eedf64129a03f11be4a",
+      "size": 1466
+    },
+    {
+      "path": "CSRF.md",
+      "sha": "abf076151c1792b2e24d57ed3359657a30da04d3",
+      "size": 2041
+    },
+    {
+      "path": "DATA_ENCRYPTION.md",
+      "sha": "0e45e8c9592816e89800eddc9fac8501e0bdce06",
+      "size": 1670
+    },
+    {
+      "path": "DATA_MASKING.md",
+      "sha": "baf8aee70ffd2b1836e3bc443ba74eac4b6367be",
+      "size": 1340
+    },
+    {
+      "path": "DDOS_PROTECTION.md",
+      "sha": "ad50c31d0c5100cdb5359cbb61a0a4eb6cea33a6",
+      "size": 1027
+    },
+    {
+      "path": "DISCLOSURE_POLICY.md",
+      "sha": "2dfa770172fdf623794a52e9ab4c289fce23f2ef",
+      "size": 1408
+    },
+    {
+      "path": "ERP-MASTER-IMPLEMENTATION.md",
+      "sha": "454e989d8610e04f43bfa4aa002b19d1b460d15d",
+      "size": 3910
+    },
+    {
+      "path": "ERP-REPO-TRACK.md",
+      "sha": "00c61382adb9e89b7e7cb556133a54122c1aad17",
+      "size": 3244
+    },
+    {
+      "path": "ERP-ROADMAP.md",
+      "sha": "66a4d4e08461dd68c287836b35b2b45efb0f022c",
+      "size": 5364
+    },
+    {
+      "path": "HIPAA_CONTROLS.md",
+      "sha": "2ef3e3d8e0b24eeaadab3bb42bbd3517af7bcd1d",
+      "size": 1719
+    },
+    {
+      "path": "HSM.md",
+      "sha": "9867a82ea1a2b83eb59af04870d60ee31c18f350",
+      "size": 1630
+    },
+    {
+      "path": "INCIDENT_RESPONSE.md",
+      "sha": "e1418098aaeef648575bfc48bacb9c25d6f61b92",
+      "size": 2447
+    },
+    {
+      "path": "INPUT_VALIDATION.md",
+      "sha": "50fcc5db410a43adadb06a6e7a31971434b6f047",
+      "size": 1547
+    },
+    {
+      "path": "ISO27001_CONTROLS.md",
+      "sha": "a178b4974c9f3872863d56820cf583ecf5a7cfdc",
+      "size": 1255
+    },
+    {
+      "path": "KEY_ROTATION.md",
+      "sha": "7330a496789ea0d73059cfd8448ff099720cefa4",
+      "size": 1989
+    },
+    {
+      "path": "MANIFEST-STAGE50.md",
+      "sha": "db79131fe6fbfc2f2ae124a68a4da4d7c1655465",
+      "size": 499
+    },
+    {
+      "path": "MERGE-DECISIONS.md",
+      "sha": "b9ebf0c86c0c8c5ecebb3e17a475cd3fb38ff8c0",
+      "size": 5233
+    },
+    {
+      "path": "OUTPUT_ENCODING.md",
+      "sha": "e99535ae68542b9629e520fdd06b659266c95ed5",
+      "size": 1021
+    },
+    {
+      "path": "OWASP_TOP_10.md",
+      "sha": "bed5d2216e052dae82db38fed8f60785954bc4b6",
+      "size": 5769
+    },
+    {
+      "path": "PEN_TEST_PLAN.md",
+      "sha": "12f3e098e97e7f1433fcb091c0372d8759fd1816",
+      "size": 1468
+    },
+    {
+      "path": "PEN_TEST_REPORT.md",
+      "sha": "522ed3727274b2c4640a110acfd67ba99dd7ea7a",
+      "size": 661
+    },
+    {
+      "path": "RATE_LIMITING.md",
+      "sha": "23da3ff20d3b22d76902e9c810202b412ef0343c",
+      "size": 1709
+    },
+    {
+      "path": "README-STAGE18.md",
+      "sha": "88b36aae5edd932949f6964ed27e773e5ea7218d",
+      "size": 361
+    },
+    {
+      "path": "README.md",
+      "sha": "72ceeed2f3f0167a5473a17eb5974794c1c43dbf",
+      "size": 2779
+    },
+    {
+      "path": "SBOM.md",
+      "sha": "5c1ac009d403874beef5ad2fbb4c2a453922e3df",
+      "size": 1127
+    },
+    {
+      "path": "SECRETS_MANAGEMENT.md",
+      "sha": "d5dd148c856cd4d726c24553c5b0e47d973af0e4",
+      "size": 2147
+    },
+    {
+      "path": "SECURITY_SCORECARD.md",
+      "sha": "6da92ce134e67d8159babbeb48cb9a4f0855d8f8",
+      "size": 2787
+    },
+    {
+      "path": "SECURITY_TRAINING.md",
+      "sha": "10ac0b7ed2248bf5396efbcbc46af91d5cb5fb17",
+      "size": 1454
+    },
+    {
+      "path": "SESSION_MANAGEMENT.md",
+      "sha": "d1080aca156913ad080e1981ab283c77e584dd03",
+      "size": 1721
+    },
+    {
+      "path": "SISOFT-MERGE-MANIFEST.txt",
+      "sha": "37ef8db1be70677b1b886c9082577f175b7d94de",
+      "size": 2551
+    },
+    {
+      "path": "SLSA.md",
+      "sha": "dcb3e6f695cfe562d60ec110b364ede25ff8412c",
+      "size": 1582
+    },
+    {
+      "path": "SOC2_CONTROLS.md",
+      "sha": "c7b90b08e0c77383d2b95c0e06ef566b4996e7f5",
+      "size": 2159
+    },
+    {
+      "path": "SQL_INJECTION.md",
+      "sha": "07080c546f10e8e29c7bfe16a10c8c9b92e37e98",
+      "size": 1865
+    },
+    {
+      "path": "SSRF.md",
+      "sha": "4b54172a322c62c3f9bf8f0cdeea79d64f23ddbd",
+      "size": 1940
+    },
+    {
+      "path": "THREAT_MODEL.md",
+      "sha": "d1d59d6a67f7c162809b2aa5e1025aed8dcef6b9",
+      "size": 4024
+    },
+    {
+      "path": "VULNERABILITY_MANAGEMENT.md",
+      "sha": "a03d2009f5f0fbaa772959d0abd0e1e3c47867df",
+      "size": 1020
+    },
+    {
+      "path": "WAF.md",
+      "sha": "108ec87cf131c18474703a1a0e39a87f805a856e",
+      "size": 1059
+    },
+    {
+      "path": "XSS.md",
+      "sha": "368768ade9d558c21d9fe0f88873bbd09320e0bc",
+      "size": 1947
+    },
+    {
+      "path": "XXE.md",
+      "sha": "d3317ae658f7c01bfcfe3a9eadd95256eded5d76",
+      "size": 1057
+    },
+    {
+      "path": "ZERO_TRUST.md",
+      "sha": "21040bc3f93ed2c8394af38f0e81ef8c21025178",
+      "size": 1514
+    },
+    {
+      "path": "account-compromise.md",
+      "sha": "71f9c7102297aa9a8b4ea7d9a0dc0b8a035019e4",
+      "size": 1424
+    },
+    {
+      "path": "action.step.spec.ts",
+      "sha": "4d86663a21dedb82757032172d9cbe0787977ec4",
+      "size": 322
+    },
+    {
+      "path": "api-abuse.md",
+      "sha": "687c83d31a48b516d94094e53925f57bdec32e11",
+      "size": 1271
+    },
+    {
+      "path": "approval.step.spec.ts",
+      "sha": "9abe17c9b7b5777b0dc751e530e19570d420ee55",
+      "size": 324
+    },
+    {
+      "path": "atomic-rbac-mutation.spec.ts",
+      "sha": "716b1acd8f17d84b609de6103a094754ac67061e",
+      "size": 2444
+    },
+    {
+      "path": "audit.test.ts",
+      "sha": "42569eb7a877887fc3a998a36d12706cb9cda782",
+      "size": 2394
+    },
+    {
+      "path": "bpmn-validator.spec.ts",
+      "sha": "d3959569bca7f3461b86732d3659b9f007d5db3f",
+      "size": 673
+    },
+    {
+      "path": "brute-force.spec.ts",
+      "sha": "cca42e28fbd8db97a4ff1380908b91854e76d6e2",
+      "size": 867
+    },
+    {
+      "path": "cel-evaluator.spec.ts",
+      "sha": "b36e44cb4f95f986971e680b66239b2a2c77af42",
+      "size": 8752
+    },
+    {
+      "path": "comparative-analysis.spec.ts",
+      "sha": "b878057e111ca75a1180caeb61e545ac03bea97c",
+      "size": 936
+    },
+    {
+      "path": "condition.step.spec.ts",
+      "sha": "7c61dc72be35f76da1c902dbe8b2de6626f7cc09",
+      "size": 325
+    },
+    {
+      "path": "consent-proof.spec.ts",
+      "sha": "3f18387786d746a7e022a02f090fee9e78161d96",
+      "size": 2654
+    },
+    {
+      "path": "control-erp-isolation.spec.ts",
+      "sha": "ab84950a3c8f53e71b13baaa18f745c6ccf6e550",
+      "size": 5881
+    },
+    {
+      "path": "cross-plane-sod.spec.ts",
+      "sha": "3509513f33bd24a40f03f009cad5616b97f786f9",
+      "size": 4793
+    },
+    {
+      "path": "dashboard-realtime.spec.ts",
+      "sha": "fcc0e31c79a3557cb24ecdbf9811cba5400f2ba8",
+      "size": 1647
+    },
+    {
+      "path": "data-breach.md",
+      "sha": "b84dc817c558bf4b725cb73745e2eb1632d01830",
+      "size": 1544
+    },
+    {
+      "path": "ddos.md",
+      "sha": "5ce26af8ed8d0c7ab04405f357f96d69e2a3b87e",
+      "size": 1200
+    },
+    {
+      "path": "definition.service.spec.ts",
+      "sha": "fa2f2fb62d4519e94c0e42976d55f6336a188274",
+      "size": 317
+    },
+    {
+      "path": "delegation.service.spec.ts",
+      "sha": "ab048951b21aca985bb5e5f4666a560621cff079",
+      "size": 7535
+    },
+    {
+      "path": "delivery.spec.ts",
+      "sha": "9dcf059d185628edd5417ce00da3663d2066a454",
+      "size": 6163
+    },
+    {
+      "path": "digest.spec.ts",
+      "sha": "09c04ac1e7e3e0ebfa84829cc551566216ec1cf9",
+      "size": 3562
+    },
+    {
+      "path": "docs-STAGE50-POSTGRESQL-RUNTIME-CATALOG.md",
+      "sha": "89c68a1481792b3bf98c01151e7ff4bc8fb4b47d",
+      "size": 1750
+    },
+    {
+      "path": "docs-STAGE52-CLEAN-DATABASE-RUNTIME-EXECUTION.md",
+      "sha": "ba6c8a47e111d36098c9656d57746b4570d8ae69",
+      "size": 1686
+    },
+    {
+      "path": "docs-STAGE57-EXCEPTIONS.md",
+      "sha": "007361defe331ff6794af4fe36008b4a9421fad6",
+      "size": 349
+    },
+    {
+      "path": "docs-STAGE58-RELEASE-READINESS.md",
+      "sha": "4f9e2e8cffea0f20a9f563b3d3470a2447c26c84",
+      "size": 1908
+    },
+    {
+      "path": "docs-STAGE59-EXCEPTIONS.md",
+      "sha": "b7cf43f57bc28086906e584ba44879e64c85f0ed",
+      "size": 551
+    },
+    {
+      "path": "docs-STAGE61-EXCEPTIONS.md",
+      "sha": "6aa39889d57578b4d201899d57b295893a26ce45",
+      "size": 518
+    },
+    {
+      "path": "docs-STAGE63-EXCEPTIONS.md",
+      "sha": "4d0a4d27c675de7845cb6d2638c920f03c0c6611",
+      "size": 832
+    },
+    {
+      "path": "docs-STAGE64-EXCEPTIONS.md",
+      "sha": "a4b33366b95ae0918e706f32d719a8f7ce42a5ac",
+      "size": 717
+    },
+    {
+      "path": "docs-STAGE66-EXCEPTIONS.md",
+      "sha": "c73d412a3ab8293a8eb494a102dfcc71050b19e8",
+      "size": 753
+    },
+    {
+      "path": "docs-STAGE68-GLOBAL-IDENTITY-AUTH-FEDERATION.md",
+      "sha": "ed1991afcd9c8af3336d679db2874e616714b4e2",
+      "size": 3633
+    },
+    {
+      "path": "docs-STAGE70-EXCEPTIONS.md",
+      "sha": "e87db8e54a85d75dc97ec2cfee5e86cbd789dacc",
+      "size": 790
+    },
+    {
+      "path": "documents.e2e-spec.ts",
+      "sha": "400c2be80e3f25257b4170bda20e4c788daaffd3",
+      "size": 1626
+    },
+    {
+      "path": "email.action.spec.ts",
+      "sha": "251f07b3bb99767eec6ae74af414f5636f90e38b",
+      "size": 323
+    },
+    {
+      "path": "email.channel.spec.ts",
+      "sha": "a0401b43ea4a486357589f50629870d1bea484f6",
+      "size": 2664
+    },
+    {
+      "path": "escalation.spec.ts",
+      "sha": "6e6f8939c0050839f09b6cf9ba15fb1cb17867c1",
+      "size": 321
+    },
+    {
+      "path": "executor.spec.ts",
+      "sha": "896fd42e0eebe0a3a5b346339b68d5cd634d14b6",
+      "size": 717
+    },
+    {
+      "path": "field-permission.spec.ts",
+      "sha": "d8cd7cfae836b6ed03f7e2e18c580e795784e16a",
+      "size": 3192
+    },
+    {
+      "path": "healthcare-role-templates.spec.ts",
+      "sha": "110f2a40a21e4843abdb7fe19a3f84f16969fb3e",
+      "size": 3740
+    },
+    {
+      "path": "in-app.channel.spec.ts",
+      "sha": "46fbce2aaecdb6210b3071086a9ce43a4a227f9a",
+      "size": 1550
+    },
+    {
+      "path": "insider-threat.md",
+      "sha": "78c523425037053ca5b9eb651881dce10384430a",
+      "size": 1293
+    },
+    {
+      "path": "inventory.invariants.spec.ts",
+      "sha": "4c47f6d3d7a5462af53299ad6ffbaca6c740e4eb",
+      "size": 408
+    },
+    {
+      "path": "notifications.e2e-spec.ts",
+      "sha": "a30ed7d4d4817091b80ed2bf6eb49641cf0ab838",
+      "size": 2046
+    },
+    {
+      "path": "optimisticLock.test.ts",
+      "sha": "1e123408316d42716e81bc0006a89a7d997ff769",
+      "size": 2816
+    },
+    {
+      "path": "permission-cache.spec.ts",
+      "sha": "4c743d2fff8f0df3a5a9717368b418cf8a346e20",
+      "size": 3456
+    },
+    {
+      "path": "permission-catalog.spec.ts",
+      "sha": "8d12e0ecbc1c8578fb492df25d2749ae64727545",
+      "size": 3534
+    },
+    {
+      "path": "permission-key.utils.spec.ts",
+      "sha": "5cd33097bee93b8943558a90eea60fed8811b960",
+      "size": 3019
+    },
+    {
+      "path": "permission.guard.spec.ts",
+      "sha": "fd722363a048a00cc093c91778ea4c31273d5f1f",
+      "size": 3624
+    },
+    {
+      "path": "permission.service.spec.ts",
+      "sha": "ee828f03e00fbbaa0c4386b8c708d2561a1c6ea7",
+      "size": 6179
+    },
+    {
+      "path": "preference.service.spec.ts",
+      "sha": "f596b55ff74f2631dc3c63ac95bad1971b22a781",
+      "size": 2263
+    },
+    {
+      "path": "purchase.service.spec.ts",
+      "sha": "3d100eeee6acb181fa47d444040f7e8153e0eed7",
+      "size": 6281
+    },
+    {
+      "path": "ransomware.md",
+      "sha": "4f9bfe23590360c2025f49ec23356d0bce3fe97e",
+      "size": 1505
+    },
+    {
+      "path": "rbac.e2e-spec.ts",
+      "sha": "7eef46689bd6b9132bdd8c03bd892ca588097802",
+      "size": 2781
+    },
+    {
+      "path": "report-executor.spec.ts",
+      "sha": "e86f7d9c51ed13e2d9ad393e7b4c9cf8a241f486",
+      "size": 6310
+    },
+    {
+      "path": "retry.spec.ts",
+      "sha": "1463f02388f8a626b9f6e86e23be01ed7122e3e6",
+      "size": 3588
+    },
+    {
+      "path": "rls.spec.ts",
+      "sha": "9da18c7a50519f0be878e55d0fa6398ae2082f41",
+      "size": 336
+    },
+    {
+      "path": "rls.test.ts",
+      "sha": "0ebab425670e7807fbef5c35d1ca458d5946d471",
+      "size": 2961
+    },
+    {
+      "path": "role.service.spec.ts",
+      "sha": "e67c1e9352c254785df2fa6f2dbcc7ed620a6a37",
+      "size": 4610
+    },
+    {
+      "path": "schema.test.ts",
+      "sha": "fc6c604d13abab691a921486c63ba76ad9e26a1d",
+      "size": 3950
+    },
+    {
+      "path": "script.action.spec.ts",
+      "sha": "611307a3c9bc3afbbf9e10099fccc55b4636b8b2",
+      "size": 324
+    },
+    {
+      "path": "security-bypass.spec.ts",
+      "sha": "f6c6e6660a3d31bb294eb4e3fe7f279363c79ae2",
+      "size": 3740
+    },
+    {
+      "path": "security-headers.spec.ts",
+      "sha": "55044a8a5a769bd6ca3d676d2d6dfbd799db3765",
+      "size": 1498
+    },
+    {
+      "path": "seeds.test.ts",
+      "sha": "442f18a956980a1dcff4a9d0a92f8006b8ce6ea9",
+      "size": 1213
+    },
+    {
+      "path": "sod.service.spec.ts",
+      "sha": "ca61ca73d1db2caf794eed18d40762f0b1f966cb",
+      "size": 4951
+    },
+    {
+      "path": "softDelete.test.ts",
+      "sha": "4ad0f3a4f4048f8479832da9b204dfe527922dcb",
+      "size": 1493
+    },
+    {
+      "path": "sql-injection.spec.ts",
+      "sha": "37118c4cb7b6304e77b91c04bd0db14506db1074",
+      "size": 1431
+    },
+    {
+      "path": "step-executor.spec.ts",
+      "sha": "c0b1c17094d8bbfda929ca141995df91d0fbda8e",
+      "size": 324
+    },
+    {
+      "path": "supply-chain.md",
+      "sha": "4e94b4940781e913194a139bdd607a40b402912c",
+      "size": 1615
+    },
+    {
+      "path": "surgical-count.spec.ts",
+      "sha": "6eb18df8808276e20c597df97ab0577ab64bca57",
+      "size": 10625
+    },
+    {
+      "path": "task.service.spec.ts",
+      "sha": "8285e3a4143a6db837fc1a4f15f59b30821824ab",
+      "size": 323
+    },
+    {
+      "path": "test-db.helper.ts",
+      "sha": "861ff760bf3c7d8708b5adb21ba090dcf13b2db7",
+      "size": 3640
+    },
+    {
+      "path": "test-run.spec.ts",
+      "sha": "3a99ea1a123459b9987d21b4edf562413691ebf1",
+      "size": 319
+    },
+    {
+      "path": "trend-analysis.spec.ts",
+      "sha": "46d292e5a747d9d3cd2b4f73c51b23c4a1b743a5",
+      "size": 1169
+    },
+    {
+      "path": "trigger.service.spec.ts",
+      "sha": "11f2ddb139f74f5d54a56efd1d9f754bb0accc53",
+      "size": 326
+    },
+    {
+      "path": "version-compatibility.spec.ts",
+      "sha": "6ec5647d388a8e9d1fcac7da416dbee3a44927c3",
+      "size": 505
+    },
+    {
+      "path": "version.service.spec.ts",
+      "sha": "ebd7625b91917a9fd2b435f1081915510cf28376",
+      "size": 400
+    },
+    {
+      "path": "webhook.action.spec.ts",
+      "sha": "0739e4ddc5f91249e75b7f4b375bb34eb9dcd2a8",
+      "size": 325
+    },
+    {
+      "path": "widget-data.spec.ts",
+      "sha": "f646d153805eccd4ccae275a2862ef12856d5304",
+      "size": 1600
+    },
+    {
+      "path": "workflow.e2e-spec.ts",
+      "sha": "5aa9920b598c27ba6bacc0641130a50e4d41dc43",
+      "size": 540
+    }
+  ]
+}
