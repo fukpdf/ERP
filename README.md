@@ -24,7 +24,7 @@ summary:
 
 - [THREAT_MODEL.md](./THREAT_MODEL.md) — STRIDE analysis per major component
 - [OWASP_TOP_10.md](./OWASP_TOP_10.md) — control-by-control audit
- - Application security: [CSRF.md](./CSRF.md), [XSS.md](./XSS.md),
+- Application security: [CSRF.md](./CSRF.md), [XSS.md](./XSS.md),
   [SQL_INJECTION.md](./SQL_INJECTION.md), [SSRF.md](./SSRF.md),
   [XXE.md](./XXE.md), [BROKEN_ACCESS_CONTROL.md](./BROKEN_ACCESS_CONTROL.md)
   - Missing from current tree and tracked in Phase 0: INSECURE_DESERIALIZATION.md
