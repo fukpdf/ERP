@@ -38,6 +38,9 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'JournalLine_tenant_id_unique') THEN
     ALTER TABLE "JournalLine" ADD CONSTRAINT "JournalLine_tenant_id_unique" UNIQUE ("tenantId","id");
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TaxCode_tenant_id_unique') THEN
+    ALTER TABLE "TaxCode" ADD CONSTRAINT "TaxCode_tenant_id_unique" UNIQUE ("tenantId","id");
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Vendor_tenant_id_unique') THEN
     ALTER TABLE "Vendor" ADD CONSTRAINT "Vendor_tenant_id_unique" UNIQUE ("tenantId","id");
   END IF;
