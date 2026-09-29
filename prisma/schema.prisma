@@ -84,6 +84,7 @@ model OutboxEvent {
   id String @id @default(uuid()) @db.Uuid
   tenantId String @db.Uuid
   eventType String
+  dedupeKey String
   aggregateType String
   aggregateId String
   payload Json
@@ -92,6 +93,7 @@ model OutboxEvent {
   attempts Int @default(0)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
   @@index([publishedAt,occurredAt])
+  @@unique([tenantId,dedupeKey])
   @@index([tenantId,occurredAt])
 }
 
