@@ -24,3 +24,13 @@
 
 ## Re-audit
 The Phase 2 artifact set is internally consistent at the structural level. Remaining cross-tenant FK consistency is explicitly recorded as a runtime/security design follow-up rather than silently treated as solved.
+
+## Final re-audit after fixes
+- Prisma model relation graph: **59 relations / 0 missing reverse relation declarations** by structural inspection.
+- 29/29 Phase 2 models present.
+- 13/13 domain packages present.
+- 29/29 domain RLS policies include WITH CHECK.
+- Platform tenant tables are FORCE RLS hardened.
+- 21 cross-domain tenant-reference guards plus CRM lead reference are represented in migrations.
+- Workspace explicitly includes nested domain packages.
+- No lockfile was fabricated; reproducible-install/runtime verification remains BLOCKED.
