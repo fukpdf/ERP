@@ -158,6 +158,7 @@ model Organization {
   businessUnits BusinessUnit[]
   @@unique([tenantId,code])
   @@index([tenantId,status])
+  @@unique([tenantId,id])
 }
 model BusinessUnit {
   id String @id @default(uuid()) @db.Uuid
@@ -171,6 +172,7 @@ model BusinessUnit {
   warehouses Warehouse[]
   @@unique([tenantId,code])
   @@index([tenantId,organizationId])
+  @@unique([tenantId,id])
 }
 model Currency {
   id String @id @default(uuid()) @db.Uuid
@@ -181,6 +183,7 @@ model Currency {
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model UnitOfMeasure {
   id String @id @default(uuid()) @db.Uuid
@@ -191,6 +194,7 @@ model UnitOfMeasure {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   products Product[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model ProductCategory {
   id String @id @default(uuid()) @db.Uuid
@@ -201,6 +205,7 @@ model ProductCategory {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   products Product[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model Product {
   id String @id @default(uuid()) @db.Uuid
@@ -220,6 +225,7 @@ model Product {
   manufacturingOrders ManufacturingOrder[]
   @@unique([tenantId,sku])
   @@index([tenantId,categoryId])
+  @@unique([tenantId,id])
 }
 model Warehouse {
   id String @id @default(uuid()) @db.Uuid
@@ -232,6 +238,7 @@ model Warehouse {
   businessUnit BusinessUnit? @relation(fields:[businessUnitId],references:[id],onDelete: SetNull)
   inventoryStocks InventoryStock[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model InventoryStock {
   id String @id @default(uuid()) @db.Uuid
@@ -244,6 +251,7 @@ model InventoryStock {
   warehouse Warehouse @relation(fields:[warehouseId],references:[id],onDelete: Cascade)
   product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
   @@unique([tenantId,warehouseId,productId])
+  @@unique([tenantId,id])
 }
 model Account {
   id String @id @default(uuid()) @db.Uuid
@@ -255,6 +263,7 @@ model Account {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   journalLines JournalLine[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model FiscalPeriod {
   id String @id @default(uuid()) @db.Uuid
@@ -267,6 +276,7 @@ model FiscalPeriod {
   @@unique([tenantId,name])
   journalEntries JournalEntry[]
   @@index([tenantId,startsAt,endsAt])
+  @@unique([tenantId,id])
 }
 model JournalEntry {
   id String @id @default(uuid()) @db.Uuid
@@ -281,6 +291,7 @@ model JournalEntry {
   lines JournalLine[]
   @@unique([tenantId,reference])
   @@index([tenantId,entryDate])
+  @@unique([tenantId,id])
 }
 model JournalLine {
   id String @id @default(uuid()) @db.Uuid
@@ -294,6 +305,7 @@ model JournalLine {
   journalEntry JournalEntry @relation(fields:[journalEntryId],references:[id],onDelete: Cascade)
   account Account @relation(fields:[accountId],references:[id],onDelete: Restrict)
   @@index([tenantId,journalEntryId])
+  @@unique([tenantId,id])
 }
 model TaxCode {
   id String @id @default(uuid()) @db.Uuid
@@ -304,6 +316,7 @@ model TaxCode {
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model Vendor {
   id String @id @default(uuid()) @db.Uuid
@@ -315,6 +328,7 @@ model Vendor {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   purchaseOrders PurchaseOrder[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model PurchaseOrder {
   id String @id @default(uuid()) @db.Uuid
@@ -328,6 +342,7 @@ model PurchaseOrder {
   lines PurchaseLine[]
   @@unique([tenantId,number])
   @@index([tenantId,vendorId])
+  @@unique([tenantId,id])
 }
 model PurchaseLine {
   id String @id @default(uuid()) @db.Uuid
@@ -339,6 +354,7 @@ model PurchaseLine {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   purchaseOrder PurchaseOrder @relation(fields:[purchaseOrderId],references:[id],onDelete: Cascade)
   product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,id])
 }
 model Customer {
   id String @id @default(uuid()) @db.Uuid
@@ -350,6 +366,7 @@ model Customer {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   salesOrders SalesOrder[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model SalesOrder {
   id String @id @default(uuid()) @db.Uuid
@@ -363,6 +380,7 @@ model SalesOrder {
   lines SalesLine[]
   @@unique([tenantId,number])
   @@index([tenantId,customerId])
+  @@unique([tenantId,id])
 }
 model SalesLine {
   id String @id @default(uuid()) @db.Uuid
@@ -374,6 +392,7 @@ model SalesLine {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   salesOrder SalesOrder @relation(fields:[salesOrderId],references:[id],onDelete: Cascade)
   product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,id])
 }
 model Employee {
   id String @id @default(uuid()) @db.Uuid
@@ -387,6 +406,7 @@ model Employee {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   payrollEntries PayrollEntry[]
   @@unique([tenantId,employeeNumber])
+  @@unique([tenantId,id])
 }
 model PayrollRun {
   id String @id @default(uuid()) @db.Uuid
@@ -398,6 +418,7 @@ model PayrollRun {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   entries PayrollEntry[]
   @@unique([tenantId,name])
+  @@unique([tenantId,id])
 }
 model PayrollEntry {
   id String @id @default(uuid()) @db.Uuid
@@ -411,6 +432,7 @@ model PayrollEntry {
   payrollRun PayrollRun @relation(fields:[payrollRunId],references:[id],onDelete: Cascade)
   employee Employee @relation(fields:[employeeId],references:[id],onDelete: Restrict)
   @@unique([tenantId,payrollRunId,employeeId])
+  @@unique([tenantId,id])
 }
 model Lead {
   id String @id @default(uuid()) @db.Uuid
@@ -421,6 +443,7 @@ model Lead {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   opportunities Opportunity[]
   @@index([tenantId,status])
+  @@unique([tenantId,id])
 }
 model Opportunity {
   id String @id @default(uuid()) @db.Uuid
@@ -432,6 +455,7 @@ model Opportunity {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   lead Lead? @relation(fields:[leadId],references:[id],onDelete: SetNull)
   @@index([tenantId,status])
+  @@unique([tenantId,id])
 }
 model Project {
   id String @id @default(uuid()) @db.Uuid
@@ -444,6 +468,7 @@ model Project {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   tasks ProjectTask[]
   @@unique([tenantId,code])
+  @@unique([tenantId,id])
 }
 model ProjectTask {
   id String @id @default(uuid()) @db.Uuid
@@ -454,6 +479,7 @@ model ProjectTask {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   project Project @relation(fields:[projectId],references:[id],onDelete: Cascade)
   @@index([tenantId,projectId])
+  @@unique([tenantId,id])
 }
 model BillOfMaterials {
   id String @id @default(uuid()) @db.Uuid
@@ -465,6 +491,7 @@ model BillOfMaterials {
   product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
   manufacturingOrders ManufacturingOrder[]
   @@unique([tenantId,productId,version])
+  @@unique([tenantId,id])
 }
 model ManufacturingOrder {
   id String @id @default(uuid()) @db.Uuid
@@ -478,6 +505,7 @@ model ManufacturingOrder {
   product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
   bom BillOfMaterials @relation(fields:[bomId],references:[id],onDelete: Restrict)
   @@unique([tenantId,number])
+  @@unique([tenantId,id])
 }
 model ReportDefinition {
   id String @id @default(uuid()) @db.Uuid
@@ -488,6 +516,7 @@ model ReportDefinition {
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   @@unique([tenantId,key])
+  @@unique([tenantId,id])
 }
 
 
