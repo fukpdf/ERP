@@ -64,7 +64,9 @@ ALTER TABLE "InvoiceLine" ENABLE ROW LEVEL SECURITY; ALTER TABLE "InvoiceLine" F
 ALTER TABLE "Payment" ENABLE ROW LEVEL SECURITY; ALTER TABLE "Payment" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "Entitlement" ENABLE ROW LEVEL SECURITY; ALTER TABLE "Entitlement" FORCE ROW LEVEL SECURITY;
 
-CREATE POLICY "subscription_plan_isolation" ON "SubscriptionPlan" USING (pg_has_role(current_user,'erp_control_plane','member')) WITH CHECK (pg_has_role(current_user,'erp_control_plane','member'));
+CREATE POLICY "subscription_plan_isolation" ON "SubscriptionPlan"
+USING (pg_has_role(current_user,'erp_control_plane','member') OR NULLIF(current_setting('app.tenant_id',true),'') IS NOT NULL)
+WITH CHECK (pg_has_role(current_user,'erp_control_plane','member'));
 CREATE POLICY "subscription_tenant_isolation" ON "Subscription" USING ("tenantId" = NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE POLICY "invoice_tenant_isolation" ON "Invoice" USING ("tenantId" = NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE POLICY "invoice_line_tenant_isolation" ON "InvoiceLine" USING ("tenantId" = NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id',true),'')::uuid);
