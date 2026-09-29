@@ -41,5 +41,9 @@ Phase 1 must not be called runtime-complete until that gate is executed.
 - No unrelated project paths were introduced by Phase 1.
 - No broken Phase 0 documentation links were introduced.
 
+### Final static re-audit after fixes
+
+The previously identified Phase-1 RLS deficiencies were fixed: write-path `WITH CHECK` predicates, `FORCE ROW LEVEL SECURITY`, and session tenant isolation are now represented in the migrations. The verification artifact was also added.
+
 ### Remaining blocker
 The lockfile is not available from a verified source and cannot be honestly fabricated. Therefore reproducible install, compiler execution, Prisma validation/migration execution, and PostgreSQL cross-tenant RLS runtime tests remain BLOCKED. This is the only unresolved Phase 1 gate identified by the repository-only re-audit.
