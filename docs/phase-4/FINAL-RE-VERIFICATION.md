@@ -25,6 +25,17 @@ A second static review must confirm:
 - idempotency and lifecycle invariants are represented in both schema and package tests;
 - no Phase-4 code leaks control-plane access into tenant-plane packages.
 
+### Static re-audit completed after fixes
+- 8/8 Phase-4 Prisma models present.
+- Phase-4 reverse relation checks pass for Tenant, Identity, ERP registry, provisioning, and audit edges.
+- 8/8 Phase-4 tables are FORCE RLS protected.
+- 8/8 Phase-4 policies include USING + WITH CHECK and require the dedicated database role.
+- Provisioning idempotency constraint is present.
+- Default control-plane permission/role catalog is deterministic and conflict-safe.
+- Control-plane permission evaluation has unit coverage.
+- Workspace test discovery covers all current nested package test files.
+- No unrelated project paths introduced.
+
 ### Runtime gate
 Runtime remains blocked because the available environment does not provide a verified PostgreSQL instance, installed dependency environment, Prisma generation/migration run, or trusted database-role configuration.
 
