@@ -16,6 +16,7 @@
 - 0006 adds tenant-scoped outbox idempotency.
 - 0007 adds database same-tenant reference guards.
 - 0008 completes CRM Lead → Opportunity FK and tenant guard.
+- 0014 replaces trigger-only same-tenant enforcement with database-level composite tenant foreign keys for all 22 cross-domain references; nullable relations retain SET NULL semantics.
 - Nested pnpm workspace pattern is explicitly declared.
 - Prisma client and CLI are pinned to 7.10.0.
 - No lockfile was invented.
@@ -33,4 +34,4 @@ Required runtime evidence before Phase 2 can be called runtime-complete:
 7. representative domain CRUD and transaction-context tests;
 8. outbox idempotency test.
 
-No further repository-fixable Phase 2 static deficiency was found in this cycle.
+A trigger-only same-tenant guard was found insufficient because ordinary trigger SELECTs can be affected by RLS. This was fixed with composite tenant-aware foreign keys, which PostgreSQL enforces as referential-integrity constraints outside normal RLS filtering. Runtime proof is still required.
