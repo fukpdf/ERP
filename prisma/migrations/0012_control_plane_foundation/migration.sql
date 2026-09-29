@@ -109,3 +109,38 @@ CREATE POLICY "control_plane_audit_only" ON "ControlPlaneAuditEvent" USING (pg_h
 
 -- Deployment must explicitly grant membership to the trusted control-plane service role.
 -- Tenant application roles MUST NOT be members of erp_control_plane.
+
+-- Deterministic least-privilege control-plane permission catalog.
+INSERT INTO "ControlPlanePermission" ("key","name") VALUES
+  ('erp.read','Read ERP registry'),
+  ('erp.provision','Provision or repair ERP instances'),
+  ('erp.suspend','Suspend or resume ERP instances'),
+  ('erp.deprovision','Deprovision ERP instances'),
+  ('erp.audit','Read control-plane audit events')
+ON CONFLICT ("key") DO NOTHING;
+
+INSERT INTO "ControlPlaneRole" ("key","name") VALUES
+  ('platform_admin','Platform administrator'),
+  ('operations_admin','ERP operations administrator'),
+  ('auditor','Control-plane auditor')
+ON CONFLICT ("key") DO NOTHING;
+
+INSERT INTO "ControlPlaneRolePermission" ("roleId","permissionId")
+SELECT r.id, p.id
+FROM "ControlPlaneRole" r CROSS JOIN "ControlPlanePermission" p
+WHERE r.key = 'platform_admin'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO "ControlPlaneRolePermission" ("roleId","permissionId")
+SELECT r.id, p.id
+FROM "ControlPlaneRole" r
+JOIN "ControlPlanePermission" p ON p.key IN ('erp.read','erp.provision','erp.suspend','erp.deprovision')
+WHERE r.key = 'operations_admin'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO "ControlPlaneRolePermission" ("roleId","permissionId")
+SELECT r.id, p.id
+FROM "ControlPlaneRole" r
+JOIN "ControlPlanePermission" p ON p.key IN ('erp.read','erp.audit')
+WHERE r.key = 'auditor'
+ON CONFLICT DO NOTHING;
