@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { provisioningDedupeKey, transitionErpInstanceStatus, validateProvisioningRequest } from "./src/index.ts";
+import { hasControlPlanePermission, provisioningDedupeKey, transitionErpInstanceStatus, validateProvisioningRequest } from "./src/index.ts";
 
 test("valid lifecycle transition is deterministic", () => {
   assert.equal(transitionErpInstanceStatus("ACTIVE", "SUSPEND"), "SUSPENDED");
@@ -22,4 +22,9 @@ test("provisioning request requires all control-plane identity fields", () => {
 
 test("provisioning dedupe key is deterministic", () => {
   assert.equal(provisioningDedupeKey("erp-1", "request-7"), "erp-1:request-7");
+});
+
+test("control-plane permission evaluation fails closed", () => {
+  assert.equal(hasControlPlanePermission(["erp.read","erp.provision"], "erp.provision"), true);
+  assert.equal(hasControlPlanePermission(["erp.read"], "erp.provision"), false);
 });
