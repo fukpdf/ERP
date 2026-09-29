@@ -1,0 +1,5 @@
+CREATE POLICY "workflow_definition_tenant_isolation" ON "WorkflowDefinition" USING ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid);
+CREATE POLICY "workflow_step_tenant_isolation" ON "WorkflowStep" USING ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid);
+CREATE POLICY "workflow_run_tenant_isolation" ON "WorkflowRun" USING ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid);
+CREATE POLICY "automation_rule_tenant_isolation" ON "AutomationRule" USING ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid);
+CREATE POLICY "automation_run_tenant_isolation" ON "AutomationRun" USING ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id', true),'')::uuid);
