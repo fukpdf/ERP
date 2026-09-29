@@ -8,7 +8,7 @@ datasource db {
 enum TenantStatus { ACTIVE SUSPENDED DISABLED }
 enum IdentityStatus { ACTIVE SUSPENDED DISABLED }
 model Tenant {
-  id UUID? @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
   name String
   status TenantStatus @default(ACTIVE)
   createdAt DateTime @default(now())
