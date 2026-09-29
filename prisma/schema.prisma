@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum TenantStatus { ACTIVE SUSPENDED DISABLED }
+enum IdentityStatus { ACTIVE SUSPENDED DISABLED }
+model Tenant {
+  id UUID? @id @default(uuid()) @db.Uuid
+  name String
+  status TenantStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  identities TenantIdentity[]
+  roles Role[]
+  auditEvents AuditEvent[]
+  outbox OutboxEvent[]
+  @@index([status])
+}
+model Identity {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  status IdentityStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships TenantIdentity[]
+  sessions Session[]
+}
+model TenantIdentity {
+  tenantId String @db.Uuid
+  identityId String @db.Uuid
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  identity Identity @relation(fields:[identityId],references:[id],onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([tenantId,identityId])
+  @@index([identityId])
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  identityId String @db.Uuid
+  identity Identity @relation(fields:[identityId],references:[id],onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([identityId,expiresAt])
+}
+model Role {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  bindings RolePermission[]
+  @@unique([tenantId,name])
+}
+model Permission {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  bindings RolePermission[]
+}
+model RolePermission {
+  roleId String @db.Uuid
+  permissionId String @db.Uuid
+  role Role @relation(fields:[roleId],references:[id],onDelete: Cascade)
+  permission Permission @relation(fields:[permissionId],references:[id],onDelete: Cascade)
+  @@id([roleId,permissionId])
+}
+model AuditEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  actorId String @db.Uuid
+  action String
+  resourceType String
+  resourceId String
+  correlationId String
+  metadata Json
+  occurredAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
+  @@index([tenantId,occurredAt])
+  @@index([tenantId,resourceType,resourceId])
+}
+model OutboxEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  eventType String
+  aggregateType String
+  aggregateId String
+  payload Json
+  occurredAt DateTime @default(now())
+  publishedAt DateTime?
+  attempts Int @default(0)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
+  @@index([publishedAt,occurredAt])
+  @@index([tenantId,occurredAt])
+}
