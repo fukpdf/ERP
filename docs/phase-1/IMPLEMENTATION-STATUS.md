@@ -28,3 +28,18 @@
 The workspace lockfile is still absent because the repository had no verified lockfile source. It must be generated from the exact declared dependency graph in a real package-manager environment before reproducible installation can be marked PASS.
 
 Phase 1 must not be called runtime-complete until that gate is executed.
+
+
+## Final re-audit evidence — 2026-09-29
+
+- Required Phase 1 source/config/schema/test paths: all present.
+- `package.json` parses as JSON and exposes typecheck/test/validate scripts.
+- Prisma generator and PostgreSQL datasource are present.
+- All nine platform foundation models are present.
+- RLS is enabled in migration `0001_platform_foundation`; tenant policies are present in migration `0002_tenant_rls_policies`.
+- Foundation tests are present for tenant context, identity normalization, session lifecycle, RBAC denial, and configuration failure.
+- No unrelated project paths were introduced by Phase 1.
+- No broken Phase 0 documentation links were introduced.
+
+### Remaining blocker
+The lockfile is not available from a verified source and cannot be honestly fabricated. Therefore reproducible install, compiler execution, Prisma validation/migration execution, and PostgreSQL cross-tenant RLS runtime tests remain BLOCKED. This is the only unresolved Phase 1 gate identified by the repository-only re-audit.
