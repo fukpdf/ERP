@@ -1,0 +1,2 @@
+export interface AuthSession{id:string;identityId:string;expiresAt:Date;revokedAt:Date|null}
+export function isSessionActive(session:AuthSession,now=new Date()):boolean{return session.revokedAt===null&&session.expiresAt.getTime()>now.getTime()}
