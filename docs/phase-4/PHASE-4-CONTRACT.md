@@ -11,13 +11,14 @@ Phase 4 establishes the control-plane boundary for managing multiple ERP instanc
 3. Control-plane administration is separate from tenant RBAC.
 4. Control-plane tables are FORCE RLS protected and require membership in the dedicated `erp_control_plane` PostgreSQL role.
 5. Tenant application roles must not be members of `erp_control_plane`.
-6. Provisioning operations are idempotent per ERP instance through a database uniqueness constraint.
-7. Every provisioning operation and control-plane audit event carries a correlation ID.
-8. Lifecycle transitions are deterministic and invalid transitions fail closed.
-9. Deprovisioning is represented as a lifecycle state transition; destructive physical deletion is not implicit.
-10. Control-plane authorization is enforced by both database boundary and application RBAC; membership in the database role is not a substitute for permission checks.
-11. No control-plane table is tenant-context accessible through `app.tenant_id`.
-12. Runtime provisioning workers, external infrastructure, and production credentials remain separate from the deterministic control-plane contract until real infrastructure exists.
+6. The `erp_control_plane` role is bootstrapped outside Prisma migrations; migration 0012 fails closed if the role is absent.
+7. Provisioning operations are idempotent per ERP instance through a database uniqueness constraint.
+8. Every provisioning operation and control-plane audit event carries a correlation ID.
+9. Lifecycle transitions are deterministic and invalid transitions fail closed.
+10. Deprovisioning is represented as a lifecycle state transition; destructive physical deletion is not implicit.
+11. Control-plane authorization is enforced by both database boundary and application RBAC; membership in the database role is not a substitute for permission checks.
+12. No control-plane table is tenant-context accessible through `app.tenant_id`.
+13. Runtime provisioning workers, external infrastructure, and production credentials remain separate from the deterministic control-plane contract until real infrastructure exists.
 
 ## Runtime gate
 Static schema/package work can be validated in-repository. Runtime completion requires a real PostgreSQL environment and evidence for:
