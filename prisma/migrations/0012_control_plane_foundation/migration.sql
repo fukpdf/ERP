@@ -1,11 +1,11 @@
 -- Phase 4: control-plane and multi-ERP registry foundation.
 -- The control-plane database role is deliberately separate from tenant application roles.
-DO $$
+DO $
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'erp_control_plane') THEN
-    CREATE ROLE erp_control_plane NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+    RAISE EXCEPTION 'required PostgreSQL role erp_control_plane is missing; run the control-plane bootstrap before migrations';
   END IF;
-END $$;
+END $;
 
 CREATE TYPE "ErpInstanceStatus" AS ENUM ('PROVISIONING','ACTIVE','SUSPENDED','DECOMMISSIONING','DECOMMISSIONED','FAILED');
 CREATE TYPE "ProvisioningOperationType" AS ENUM ('PROVISION','DEPROVISION','SUSPEND','RESUME','REPAIR');
