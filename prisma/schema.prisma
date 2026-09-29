@@ -52,6 +52,10 @@ model Tenant {
   automationRules AutomationRule[]
   automationRuns AutomationRun[]
   erpInstance ErpInstance?
+  subscriptions Subscription[]
+  invoices Invoice[]
+  payments Payment[]
+  entitlements Entitlement[]
   @@index([status])
 }
 model Identity {
@@ -587,6 +591,7 @@ model ErpInstance {
   updatedAt DateTime @updatedAt
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
   provisioningOperations ProvisioningOperation[]
+  subscription Subscription?
   @@index([status,region])
 }
 
@@ -664,4 +669,122 @@ model ControlPlaneAuditEvent {
   admin ControlPlaneAdmin @relation(fields:[adminId],references:[id],onDelete: Restrict)
   @@index([adminId,occurredAt])
   @@index([resourceType,resourceId])
+}
+
+
+enum SubscriptionStatus { TRIALING ACTIVE PAST_DUE PAUSED CANCELLED EXPIRED }
+enum BillingInterval { MONTHLY YEARLY CUSTOM }
+enum InvoiceStatus { DRAFT OPEN PAID VOID UNCOLLECTIBLE }
+enum PaymentStatus { PENDING SUCCEEDED FAILED REFUNDED }
+enum EntitlementStatus { ACTIVE SUSPENDED EXPIRED }
+
+model SubscriptionPlan {
+  id String @id @default(uuid()) @db.Uuid
+  code String @unique
+  name String
+  description String?
+  billingInterval BillingInterval
+  amount Decimal @db.Decimal(20,6)
+  currencyCode String
+  metadata Json
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  erpInstanceId String @unique @db.Uuid
+  planId String @db.Uuid
+  status SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd DateTime
+  cancelAtPeriodEnd Boolean @default(false)
+  externalCustomerRef String?
+  externalSubscriptionRef String?
+  metadata Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  erpInstance ErpInstance @relation(fields:[erpInstanceId],references:[id],onDelete: Restrict)
+  plan SubscriptionPlan @relation(fields:[planId],references:[id],onDelete: Restrict)
+  invoices Invoice[]
+  entitlements Entitlement[]
+  @@index([tenantId,status])
+  @@index([tenantId,currentPeriodEnd])
+}
+
+model Invoice {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  subscriptionId String @db.Uuid
+  number String
+  status InvoiceStatus @default(DRAFT)
+  currencyCode String
+  subtotal Decimal @db.Decimal(20,6)
+  tax Decimal @db.Decimal(20,6)
+  total Decimal @db.Decimal(20,6)
+  dueAt DateTime?
+  issuedAt DateTime?
+  paidAt DateTime?
+  externalInvoiceRef String?
+  metadata Json
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  subscription Subscription @relation(fields:[subscriptionId],references:[id],onDelete: Restrict)
+  lines InvoiceLine[]
+  payments Payment[]
+  @@unique([tenantId,number])
+  @@index([tenantId,status,dueAt])
+}
+
+model InvoiceLine {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  invoiceId String @db.Uuid
+  description String
+  quantity Decimal @db.Decimal(20,6)
+  unitAmount Decimal @db.Decimal(20,6)
+  amount Decimal @db.Decimal(20,6)
+  metadata Json
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  invoice Invoice @relation(fields:[invoiceId],references:[id],onDelete: Cascade)
+  @@index([tenantId,invoiceId])
+}
+
+model Payment {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  invoiceId String @db.Uuid
+  provider String
+  providerPaymentRef String?
+  idempotencyKey String
+  status PaymentStatus @default(PENDING)
+  amount Decimal @db.Decimal(20,6)
+  currencyCode String
+  failureCode String?
+  processedAt DateTime?
+  metadata Json
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  invoice Invoice @relation(fields:[invoiceId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,provider,idempotencyKey])
+  @@index([tenantId,status,createdAt])
+}
+
+model Entitlement {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  subscriptionId String @db.Uuid
+  key String
+  value Json
+  status EntitlementStatus @default(ACTIVE)
+  startsAt DateTime
+  endsAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  subscription Subscription @relation(fields:[subscriptionId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,subscriptionId,key])
+  @@index([tenantId,status,endsAt])
 }
