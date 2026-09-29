@@ -51,6 +51,7 @@ model Tenant {
   workflowRuns WorkflowRun[]
   automationRules AutomationRule[]
   automationRuns AutomationRun[]
+  erpInstance ErpInstance?
   @@index([status])
 }
 model Identity {
@@ -61,6 +62,7 @@ model Identity {
   updatedAt DateTime @updatedAt
   memberships TenantIdentity[]
   sessions Session[]
+  controlPlaneAdmin ControlPlaneAdmin?
 }
 model TenantIdentity {
   tenantId String @db.Uuid
@@ -564,4 +566,102 @@ model AutomationRun {
   rule AutomationRule @relation(fields:[ruleId],references:[id],onDelete: Restrict)
   @@unique([tenantId,ruleId,dedupeKey])
   @@index([tenantId,status,createdAt])
+}
+
+
+enum ErpInstanceStatus { PROVISIONING ACTIVE SUSPENDED DECOMMISSIONING DECOMMISSIONED FAILED }
+enum ProvisioningOperationType { PROVISION DEPROVISION SUSPEND RESUME REPAIR }
+enum ProvisioningOperationStatus { PENDING RUNNING SUCCEEDED FAILED CANCELLED }
+enum ControlPlaneAdminStatus { ACTIVE SUSPENDED DISABLED }
+
+model ErpInstance {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @unique @db.Uuid
+  slug String @unique
+  displayName String
+  status ErpInstanceStatus @default(PROVISIONING)
+  region String
+  planCode String
+  metadata Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
+  provisioningOperations ProvisioningOperation[]
+  @@index([status,region])
+}
+
+model ControlPlaneAdmin {
+  id String @id @default(uuid()) @db.Uuid
+  identityId String @unique @db.Uuid
+  status ControlPlaneAdminStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  identity Identity @relation(fields:[identityId],references:[id],onDelete: Restrict)
+  roleBindings ControlPlaneAdminRole[]
+  provisioningOperations ProvisioningOperation[]
+  auditEvents ControlPlaneAuditEvent[]
+}
+
+model ControlPlaneRole {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  name String
+  bindings ControlPlaneAdminRole[]
+  permissions ControlPlaneRolePermission[]
+}
+
+model ControlPlanePermission {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  name String
+  bindings ControlPlaneRolePermission[]
+}
+
+model ControlPlaneAdminRole {
+  adminId String @db.Uuid
+  roleId String @db.Uuid
+  admin ControlPlaneAdmin @relation(fields:[adminId],references:[id],onDelete: Cascade)
+  role ControlPlaneRole @relation(fields:[roleId],references:[id],onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([adminId,roleId])
+}
+
+model ControlPlaneRolePermission {
+  roleId String @db.Uuid
+  permissionId String @db.Uuid
+  role ControlPlaneRole @relation(fields:[roleId],references:[id],onDelete: Cascade)
+  permission ControlPlanePermission @relation(fields:[permissionId],references:[id],onDelete: Cascade)
+  @@id([roleId,permissionId])
+}
+
+model ProvisioningOperation {
+  id String @id @default(uuid()) @db.Uuid
+  erpInstanceId String @db.Uuid
+  requestedByAdminId String @db.Uuid
+  operationType ProvisioningOperationType
+  status ProvisioningOperationStatus @default(PENDING)
+  idempotencyKey String
+  correlationId String
+  details Json
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  erpInstance ErpInstance @relation(fields:[erpInstanceId],references:[id],onDelete: Restrict)
+  requestedByAdmin ControlPlaneAdmin @relation(fields:[requestedByAdminId],references:[id],onDelete: Restrict)
+  @@unique([erpInstanceId,idempotencyKey])
+  @@index([status,createdAt])
+}
+
+model ControlPlaneAuditEvent {
+  id String @id @default(uuid()) @db.Uuid
+  adminId String @db.Uuid
+  action String
+  resourceType String
+  resourceId String
+  correlationId String
+  metadata Json
+  occurredAt DateTime @default(now())
+  admin ControlPlaneAdmin @relation(fields:[adminId],references:[id],onDelete: Restrict)
+  @@index([adminId,occurredAt])
+  @@index([resourceType,resourceId])
 }
