@@ -46,6 +46,11 @@ model Tenant {
   billsOfMaterials BillOfMaterials[]
   manufacturingOrders ManufacturingOrder[]
   reportDefinitions ReportDefinition[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowSteps WorkflowStep[]
+  workflowRuns WorkflowRun[]
+  automationRules AutomationRule[]
+  automationRuns AutomationRun[]
   @@index([status])
 }
 model Identity {
