@@ -19,7 +19,7 @@
 - Correlation IDs fail closed instead of using a duplicate fallback value.
 
 ## Known structural limitation requiring runtime verification
-The current domain foreign keys use single-column IDs plus tenantId on the referencing row. A database FK can therefore be structurally present without proving that the referenced row belongs to the same tenant. The RLS boundary and application tenant context reduce exposure, but the final design should add composite tenant-aware foreign keys or equivalent database-enforced consistency checks before Phase 2 is declared runtime-complete.
+Database-level same-tenant reference guards were added in migration 0007, covering cross-domain foreign keys. CRM lead linkage was completed in migration 0008. Runtime testing is still required to prove the guards behave correctly against real PostgreSQL behavior.
 
 ## Runtime status
 BLOCKED. No verified PostgreSQL runtime, installed dependency graph, generated Prisma client, or disposable migration database is available in the current evidence environment. Static repository work continues; runtime PASS is not inferred.
