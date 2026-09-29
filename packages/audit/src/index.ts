@@ -1,0 +1,2 @@
+export interface AuditEvent{tenantId:string;actorId:string;action:string;resourceType:string;resourceId:string;correlationId:string;metadata:Record<string,unknown>;occurredAt:Date}
+export function createAuditEvent(input:Omit<AuditEvent,"occurredAt">,now=new Date()):AuditEvent{return{...input,occurredAt:now}}
