@@ -110,3 +110,28 @@ ALTER TABLE "ProjectTask" ADD CONSTRAINT "ProjectTask_project_tenant_fk" FOREIGN
 ALTER TABLE "BillOfMaterials" ADD CONSTRAINT "BillOfMaterials_product_tenant_fk" FOREIGN KEY ("tenantId","productId") REFERENCES "Product" ("tenantId","id") ON DELETE NO ACTION;
 ALTER TABLE "ManufacturingOrder" ADD CONSTRAINT "ManufacturingOrder_product_tenant_fk" FOREIGN KEY ("tenantId","productId") REFERENCES "Product" ("tenantId","id") ON DELETE NO ACTION;
 ALTER TABLE "ManufacturingOrder" ADD CONSTRAINT "ManufacturingOrder_bom_tenant_fk" FOREIGN KEY ("tenantId","bomId") REFERENCES "BillOfMaterials" ("tenantId","id") ON DELETE NO ACTION;
+
+-- Remove the earlier trigger-only guard layer; composite FKs are now authoritative.
+DROP TRIGGER IF EXISTS "BusinessUnit_organizationId_tenant_guard" ON "BusinessUnit";
+DROP TRIGGER IF EXISTS "Product_categoryId_tenant_guard" ON "Product";
+DROP TRIGGER IF EXISTS "Product_uomId_tenant_guard" ON "Product";
+DROP TRIGGER IF EXISTS "Warehouse_businessUnitId_tenant_guard" ON "Warehouse";
+DROP TRIGGER IF EXISTS "InventoryStock_warehouseId_tenant_guard" ON "InventoryStock";
+DROP TRIGGER IF EXISTS "InventoryStock_productId_tenant_guard" ON "InventoryStock";
+DROP TRIGGER IF EXISTS "JournalEntry_fiscalPeriodId_tenant_guard" ON "JournalEntry";
+DROP TRIGGER IF EXISTS "JournalLine_journalEntryId_tenant_guard" ON "JournalLine";
+DROP TRIGGER IF EXISTS "JournalLine_accountId_tenant_guard" ON "JournalLine";
+DROP TRIGGER IF EXISTS "PurchaseOrder_vendorId_tenant_guard" ON "PurchaseOrder";
+DROP TRIGGER IF EXISTS "PurchaseLine_purchaseOrderId_tenant_guard" ON "PurchaseLine";
+DROP TRIGGER IF EXISTS "PurchaseLine_productId_tenant_guard" ON "PurchaseLine";
+DROP TRIGGER IF EXISTS "SalesOrder_customerId_tenant_guard" ON "SalesOrder_customerId_tenant_guard";
+DROP TRIGGER IF EXISTS "SalesLine_salesOrderId_tenant_guard" ON "SalesLine";
+DROP TRIGGER IF EXISTS "SalesLine_productId_tenant_guard" ON "SalesLine";
+DROP TRIGGER IF EXISTS "PayrollEntry_payrollRunId_tenant_guard" ON "PayrollEntry";
+DROP TRIGGER IF EXISTS "PayrollEntry_employeeId_tenant_guard" ON "PayrollEntry";
+DROP TRIGGER IF EXISTS "ProjectTask_projectId_tenant_guard" ON "ProjectTask";
+DROP TRIGGER IF EXISTS "BillOfMaterials_productId_tenant_guard" ON "BillOfMaterials";
+DROP TRIGGER IF EXISTS "ManufacturingOrder_productId_tenant_guard" ON "ManufacturingOrder";
+DROP TRIGGER IF EXISTS "ManufacturingOrder_bomId_tenant_guard" ON "ManufacturingOrder";
+DROP TRIGGER IF EXISTS "Opportunity_lead_tenant_guard" ON "Opportunity_lead_tenant_guard";
+DROP FUNCTION IF EXISTS enforce_same_tenant_reference();
