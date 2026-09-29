@@ -113,6 +113,7 @@ model Organization {
   code String
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  businessUnits BusinessUnit[]
   @@unique([tenantId,code])
   @@index([tenantId,status])
 }
@@ -125,6 +126,7 @@ model BusinessUnit {
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   organization Organization @relation(fields:[organizationId],references:[id],onDelete: Cascade)
+  warehouses Warehouse[]
   @@unique([tenantId,code])
   @@index([tenantId,organizationId])
 }
@@ -154,6 +156,7 @@ model ProductCategory {
   code String
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  products Product[]
   @@unique([tenantId,code])
 }
 model Product {
@@ -167,6 +170,11 @@ model Product {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   category ProductCategory? @relation(fields:[categoryId],references:[id],onDelete: SetNull)
   uom UnitOfMeasure @relation(fields:[uomId],references:[id],onDelete: Restrict)
+  inventoryStocks InventoryStock[]
+  purchaseLines PurchaseLine[]
+  salesLines SalesLine[]
+  billsOfMaterials BillOfMaterials[]
+  manufacturingOrders ManufacturingOrder[]
   @@unique([tenantId,sku])
   @@index([tenantId,categoryId])
 }
@@ -179,6 +187,7 @@ model Warehouse {
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   businessUnit BusinessUnit? @relation(fields:[businessUnitId],references:[id],onDelete: SetNull)
+  inventoryStocks InventoryStock[]
   @@unique([tenantId,code])
 }
 model InventoryStock {
@@ -201,6 +210,7 @@ model Account {
   accountType String
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  journalLines JournalLine[]
   @@unique([tenantId,code])
 }
 model FiscalPeriod {
@@ -212,6 +222,7 @@ model FiscalPeriod {
   isClosed Boolean @default(false)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   @@unique([tenantId,name])
+  journalEntries JournalEntry[]
   @@index([tenantId,startsAt,endsAt])
 }
 model JournalEntry {
@@ -407,6 +418,7 @@ model BillOfMaterials {
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  manufacturingOrders ManufacturingOrder[]
   @@unique([tenantId,productId,version])
 }
 model ManufacturingOrder {
