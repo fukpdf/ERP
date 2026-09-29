@@ -32,3 +32,11 @@ export function provisioningDedupeKey(erpInstanceId: string, idempotencyKey: str
   if (!erpInstanceId || !idempotencyKey) throw new Error("ERP instance and idempotency key are required");
   return `${erpInstanceId}:${idempotencyKey}`;
 }
+
+export function hasControlPlanePermission(
+  assignedPermissionKeys: readonly string[],
+  requiredPermissionKey: string
+): boolean {
+  if (!requiredPermissionKey.trim()) throw new Error("required permission key is required");
+  return new Set(assignedPermissionKeys).has(requiredPermissionKey);
+}
