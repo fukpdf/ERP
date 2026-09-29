@@ -149,6 +149,7 @@ model UnitOfMeasure {
   name String
   status RecordStatus @default(ACTIVE)
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  products Product[]
   @@unique([tenantId,code])
 }
 model ProductCategory {
