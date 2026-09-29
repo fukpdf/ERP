@@ -33,4 +33,5 @@ The Phase 2 artifact set is internally consistent at the structural level. Remai
 - Platform tenant tables are FORCE RLS hardened.
 - 21 cross-domain tenant-reference guards plus CRM lead reference are represented in migrations.
 - Workspace explicitly includes nested domain packages.
+- Composite tenant-aware foreign keys now enforce all 22 cross-domain tenant references at the database constraint layer; the prior trigger-only guard layer is retired in migration 0014.
 - No lockfile was fabricated; reproducible-install/runtime verification remains BLOCKED.
