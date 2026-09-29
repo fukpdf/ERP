@@ -478,3 +478,85 @@ model ReportDefinition {
   tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
   @@unique([tenantId,key])
 }
+
+
+enum WorkflowStatus { DRAFT ACTIVE PAUSED ARCHIVED }
+enum WorkflowRunStatus { PENDING RUNNING SUCCEEDED FAILED CANCELLED }
+enum WorkflowStepType { CONDITION ACTION NOTIFICATION }
+enum AutomationTriggerType { EVENT SCHEDULED MANUAL }
+enum AutomationRunStatus { PENDING RUNNING SUCCEEDED FAILED CANCELLED }
+
+model WorkflowDefinition {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  key String
+  name String
+  version Int @default(1)
+  status WorkflowStatus @default(DRAFT)
+  definition Json
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  steps WorkflowStep[]
+  runs WorkflowRun[]
+  @@unique([tenantId,key,version])
+  @@index([tenantId,status])
+}
+model WorkflowStep {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  workflowId String @db.Uuid
+  stepOrder Int
+  type WorkflowStepType
+  key String
+  configuration Json
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  workflow WorkflowDefinition @relation(fields:[workflowId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,workflowId,stepOrder])
+  @@unique([tenantId,workflowId,key])
+}
+model WorkflowRun {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  workflowId String @db.Uuid
+  correlationId String
+  status WorkflowRunStatus @default(PENDING)
+  input Json
+  output Json?
+  error Json?
+  startedAt DateTime?
+  finishedAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  workflow WorkflowDefinition @relation(fields:[workflowId],references:[id],onDelete: Restrict)
+  @@index([tenantId,status,createdAt])
+  createdAt DateTime @default(now())
+}
+model AutomationRule {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  key String
+  name String
+  triggerType AutomationTriggerType
+  triggerConfig Json
+  actionConfig Json
+  status WorkflowStatus @default(DRAFT)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  runs AutomationRun[]
+  @@unique([tenantId,key])
+  @@index([tenantId,status,triggerType])
+}
+model AutomationRun {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  ruleId String @db.Uuid
+  dedupeKey String
+  status AutomationRunStatus @default(PENDING)
+  input Json
+  output Json?
+  error Json?
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  rule AutomationRule @relation(fields:[ruleId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,ruleId,dedupeKey])
+  @@index([tenantId,status,createdAt])
+}
