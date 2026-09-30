@@ -6,8 +6,16 @@ on:
   workflow_dispatch:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: erp-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pnpm install --no-frozen-lockfile
+      # pnpm-lock.yaml is not yet present in the repository; do not fabricate frozen-lockfile evidence.
+      - run: pnpm install --no-frozen-lockfile --ignore-scripts=false
       - run: pnpm prisma generate
       - run: pnpm typecheck
       - run: pnpm test
