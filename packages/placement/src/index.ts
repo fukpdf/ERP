@@ -1,0 +1,4 @@
+export interface PlacementTarget{region:string;provider:string;weight:number;healthy:boolean}
+export function choosePlacement(targets:readonly PlacementTarget[],seed:string):PlacementTarget{const eligible=targets.filter(t=>t.healthy&&t.weight>0);if(!eligible.length)throw new Error("no healthy placement target");const total=eligible.reduce((s,t)=>s+t.weight,0);let n=stableHash(seed)%total;for(const t of eligible){if(n<t.weight)return t;n-=t.weight}return eligible[eligible.length-1]}
+export function validateRegion(region:string):string{const value=region.trim().toLowerCase();if(!/^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/.test(value))throw new Error("invalid region");return value}
+function stableHash(value:string):number{let h=2166136261;for(const ch of value){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
