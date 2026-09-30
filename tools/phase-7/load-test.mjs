@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 const dbUrl = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!dbUrl) throw new Error("APP_DATABASE_URL or DATABASE_URL is required");
 const concurrency = Number(process.env.PHASE7_LOAD_CONCURRENCY ?? 16);
@@ -6,7 +7,8 @@ const requests = Number(process.env.PHASE7_LOAD_REQUESTS ?? 256);
 const maxP95 = Number(process.env.PHASE7_LOAD_MAX_P95_MS ?? 250);
 if (!Number.isInteger(concurrency) || concurrency < 1) throw new Error("Invalid concurrency");
 if (!Number.isInteger(requests) || requests < concurrency) throw new Error("Invalid requests");
-const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+const adapter = new PrismaPg({ connectionString: dbUrl });
+const prisma = new PrismaClient({ adapter });
 const durations = []; let next = 0;
 const worker = async () => { while (true) { const i = next++; if (i >= requests) return; const start = performance.now(); await prisma.$queryRaw`SELECT 1 AS ok`; durations.push(performance.now() - start); } };
 const started = performance.now();
