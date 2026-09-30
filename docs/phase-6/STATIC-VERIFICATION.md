@@ -1,7 +1,14 @@
 # Phase 6 Static Verification
 
-Required repository checks: pnpm typecheck; pnpm test; pnpm prisma validate; pnpm security:scan.
+## Executed
+- Focused security TypeScript strict compilation: PASS.
+- Phase 6 security regression tests: PASS, 8 tests / 8 passed.
+- Source secret-pattern scan: PASS.
+- Git branch verified: erp-development.
+- Final merge commit verified: ceb6f9b83ab78099d5562d445072e19f6e6e3d6c.
 
-The security package is covered by packages/security/security.test.ts. The source scanner checks committed source for common private-key, cloud-key, and hard-coded credential patterns.
+## Not claimed
+GitHub Actions returned zero workflow runs for the Phase 6 merge commit. Therefore this record does not claim repository-wide CI execution of typecheck, test, or Prisma validation.
 
-A PASS here means only that the repository checks executed successfully. It does not prove live HTTP, database, Redis, WAF, DNS-rebinding, penetration-test, or compliance-audit behavior.
+## Runtime / external gates
+Still BLOCKED: live PostgreSQL/Redis isolation tests, live HTTP security middleware tests, DNS-rebinding network exercise, WAF/DDoS deployment tests, penetration testing, and formal compliance audits.
