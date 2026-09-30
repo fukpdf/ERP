@@ -23,3 +23,64 @@ jobs:
       - run: pnpm test
       - run: pnpm prisma validate
       - run: pnpm security:scan
+
+      - name: Start disposable PostgreSQL and Redis
+        run: docker compose -f infra/phase-7/docker-compose.yml up -d --wait
+
+      - name: Apply migrations to disposable PostgreSQL
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
+        run: pnpm prisma migrate deploy
+
+      - name: Bootstrap non-superuser application role
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
+          PHASE7_APP_PASSWORD: phase7-ci-app
+        run: bash tools/phase-7/bootstrap-app-role.sh
+
+      - name: Verify real PostgreSQL and Redis runtime
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
+          APP_DATABASE_URL: postgresql://erp_app:phase7-ci-app@127.0.0.1:54329/erp
+          REDIS_URL: redis://127.0.0.1:63790
+        run: |
+          mkdir -p artifacts/phase-7
+          pnpm phase7:runtime | tee artifacts/phase-7/runtime-before.json
+
+      - name: Rehearse PostgreSQL backup and restore
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
+          PHASE7_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54329/postgres
+          PHASE7_RESTORE_URL: postgresql://postgres:postgres@127.0.0.1:54329/phase7_restore
+        run: bash tools/phase-7/backup-restore.sh | tee artifacts/phase-7/backup-restore.txt
+
+      - name: Run bounded database load test
+        env:
+          APP_DATABASE_URL: postgresql://erp_app:phase7-ci-app@127.0.0.1:54329/erp
+          PHASE7_LOAD_CONCURRENCY: 16
+          PHASE7_LOAD_REQUESTS: 256
+          PHASE7_LOAD_MAX_P95_MS: 250
+        run: pnpm phase7:load | tee artifacts/phase-7/load.json
+
+      - name: Exercise Redis restart recovery
+        run: pnpm phase7:chaos | tee artifacts/phase-7/redis-chaos.txt
+
+      - name: Re-verify runtime after failure exercise
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
+          APP_DATABASE_URL: postgresql://erp_app:phase7-ci-app@127.0.0.1:54329/erp
+          REDIS_URL: redis://127.0.0.1:63790
+        run: pnpm phase7:runtime | tee artifacts/phase-7/runtime-after.json
+
+      - name: Upload Phase 7 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-7-runtime-evidence
+          path: artifacts/phase-7/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop disposable runtime
+        if: always()
+        run: docker compose -f infra/phase-7/docker-compose.yml down -v
