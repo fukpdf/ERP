@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import net from "node:net";
 import { randomUUID } from "node:crypto";
 
@@ -27,7 +28,8 @@ async function redisCommand(urlString, command) {
   });
 }
 
-const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+const adapter = new PrismaPg({ connectionString: dbUrl });
+const prisma = new PrismaClient({ adapter });
 const report = { timestamp: new Date().toISOString(), database: {}, redis: {} };
 
 try {
