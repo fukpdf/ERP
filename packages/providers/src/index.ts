@@ -1,0 +1,5 @@
+export interface ProviderContext{tenantId?:string;correlationId:string}
+export interface ProviderAdapter<Req,Res>{readonly name:string;execute(request:Req,ctx:ProviderContext):Promise<Res>}
+export interface ProviderRegistry{register<Req,Res>(capability:string,adapter:ProviderAdapter<Req,Res>):void;resolve<Req,Res>(capability:string):ProviderAdapter<Req,Res>}
+export class InMemoryProviderRegistry implements ProviderRegistry{private readonly adapters=new Map<string,ProviderAdapter<unknown,unknown>>();register<Req,Res>(capability:string,adapter:ProviderAdapter<Req,Res>){if(!capability.trim())throw new Error("capability is required");if(this.adapters.has(capability))throw new Error("provider capability already registered");this.adapters.set(capability,adapter as ProviderAdapter<unknown,unknown>)}resolve<Req,Res>(capability:string){const adapter=this.adapters.get(capability);if(!adapter)throw new Error(`provider capability not registered: ${capability}`);return adapter as ProviderAdapter<Req,Res>}}
+export function assertProviderContext(ctx:ProviderContext):void{if(!ctx.correlationId.trim())throw new Error("correlationId is required")}

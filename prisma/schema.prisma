@@ -1,0 +1,965 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+enum IdentityStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+model Tenant {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  status TenantStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  identities TenantIdentity[]
+  roles Role[]
+  auditEvents AuditEvent[]
+  outbox OutboxEvent[]
+  organizations Organization[]
+  businessUnits BusinessUnit[]
+  currencies Currency[]
+  unitsOfMeasure UnitOfMeasure[]
+  productCategories ProductCategory[]
+  products Product[]
+  warehouses Warehouse[]
+  inventoryStocks InventoryStock[]
+  accounts Account[]
+  fiscalPeriods FiscalPeriod[]
+  journalEntries JournalEntry[]
+  journalLines JournalLine[]
+  taxCodes TaxCode[]
+  vendors Vendor[]
+  purchaseOrders PurchaseOrder[]
+  purchaseLines PurchaseLine[]
+  customers Customer[]
+  salesOrders SalesOrder[]
+  salesLines SalesLine[]
+  employees Employee[]
+  payrollRuns PayrollRun[]
+  payrollEntries PayrollEntry[]
+  leads Lead[]
+  opportunities Opportunity[]
+  projects Project[]
+  projectTasks ProjectTask[]
+  billsOfMaterials BillOfMaterials[]
+  manufacturingOrders ManufacturingOrder[]
+  reportDefinitions ReportDefinition[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowSteps WorkflowStep[]
+  workflowRuns WorkflowRun[]
+  automationRules AutomationRule[]
+  automationRuns AutomationRun[]
+  erpInstance ErpInstance?
+  subscriptions Subscription[]
+  invoices Invoice[]
+  invoiceLines InvoiceLine[]
+  payments Payment[]
+  entitlements Entitlement[]
+  queueJobs QueueJob[]
+  @@index([status])
+}
+model Identity {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  status IdentityStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships TenantIdentity[]
+  sessions Session[]
+  controlPlaneAdmin ControlPlaneAdmin?
+}
+model TenantIdentity {
+  tenantId String @db.Uuid
+  identityId String @db.Uuid
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  identity Identity @relation(fields:[identityId],references:[id],onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([tenantId,identityId])
+  @@index([identityId])
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  identityId String @db.Uuid
+  identity Identity @relation(fields:[identityId],references:[id],onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([identityId,expiresAt])
+}
+model Role {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  bindings RolePermission[]
+  @@unique([tenantId,name])
+}
+model Permission {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  bindings RolePermission[]
+}
+model RolePermission {
+  roleId String @db.Uuid
+  permissionId String @db.Uuid
+  role Role @relation(fields:[roleId],references:[id],onDelete: Cascade)
+  permission Permission @relation(fields:[permissionId],references:[id],onDelete: Cascade)
+  @@id([roleId,permissionId])
+}
+model AuditEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  actorId String @db.Uuid
+  action String
+  resourceType String
+  resourceId String
+  correlationId String
+  metadata Json
+  occurredAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
+  @@index([tenantId,occurredAt])
+  @@index([tenantId,resourceType,resourceId])
+}
+model OutboxEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  eventType String
+  dedupeKey String
+  aggregateType String
+  aggregateId String
+  payload Json
+  occurredAt DateTime @default(now())
+  publishedAt DateTime?
+  attempts Int @default(0)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
+  @@index([publishedAt,occurredAt])
+  @@unique([tenantId,dedupeKey])
+  @@index([tenantId,occurredAt])
+}
+
+// Phase 2 domain foundation
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+enum JournalStatus {
+  DRAFT
+  POSTED
+  VOID
+}
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+enum LeadStatus {
+  NEW
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+enum OpportunityStatus {
+  OPEN
+  WON
+  LOST
+}
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+enum ManufacturingStatus {
+  PLANNED
+  RELEASED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Organization {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  code String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  businessUnits BusinessUnit[]
+  @@unique([tenantId,code])
+  @@index([tenantId,status])
+  @@unique([tenantId,id])
+}
+model BusinessUnit {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  organizationId String @db.Uuid
+  name String
+  code String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  organization Organization @relation(fields:[organizationId],references:[id],onDelete: Cascade)
+  warehouses Warehouse[]
+  @@unique([tenantId,code])
+  @@index([tenantId,organizationId])
+  @@unique([tenantId,id])
+}
+model Currency {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  decimalPlaces Int @default(2)
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model UnitOfMeasure {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  products Product[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model ProductCategory {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  code String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  products Product[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model Product {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  categoryId String? @db.Uuid
+  uomId String @db.Uuid
+  sku String
+  name String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  category ProductCategory? @relation(fields:[categoryId],references:[id],onDelete: SetNull)
+  uom UnitOfMeasure @relation(fields:[uomId],references:[id],onDelete: Restrict)
+  inventoryStocks InventoryStock[]
+  purchaseLines PurchaseLine[]
+  salesLines SalesLine[]
+  billsOfMaterials BillOfMaterials[]
+  manufacturingOrders ManufacturingOrder[]
+  @@unique([tenantId,sku])
+  @@index([tenantId,categoryId])
+  @@unique([tenantId,id])
+}
+model Warehouse {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  businessUnitId String? @db.Uuid
+  code String
+  name String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  businessUnit BusinessUnit? @relation(fields:[businessUnitId],references:[id],onDelete: SetNull)
+  inventoryStocks InventoryStock[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model InventoryStock {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  warehouseId String @db.Uuid
+  productId String @db.Uuid
+  quantity Decimal @default(0) @db.Decimal(20,6)
+  reservedQuantity Decimal @default(0) @db.Decimal(20,6)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  warehouse Warehouse @relation(fields:[warehouseId],references:[id],onDelete: Cascade)
+  product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,warehouseId,productId])
+  @@unique([tenantId,id])
+}
+model Account {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  accountType String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  journalLines JournalLine[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model FiscalPeriod {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  startsAt DateTime
+  endsAt DateTime
+  isClosed Boolean @default(false)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,name])
+  journalEntries JournalEntry[]
+  @@index([tenantId,startsAt,endsAt])
+  @@unique([tenantId,id])
+}
+model JournalEntry {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  fiscalPeriodId String @db.Uuid
+  reference String
+  status JournalStatus @default(DRAFT)
+  entryDate DateTime
+  description String?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  fiscalPeriod FiscalPeriod @relation(fields:[fiscalPeriodId],references:[id],onDelete: Restrict)
+  lines JournalLine[]
+  @@unique([tenantId,reference])
+  @@index([tenantId,entryDate])
+  @@unique([tenantId,id])
+}
+model JournalLine {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  journalEntryId String @db.Uuid
+  accountId String @db.Uuid
+  debit Decimal @default(0) @db.Decimal(20,6)
+  credit Decimal @default(0) @db.Decimal(20,6)
+  description String?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  journalEntry JournalEntry @relation(fields:[journalEntryId],references:[id],onDelete: Cascade)
+  account Account @relation(fields:[accountId],references:[id],onDelete: Restrict)
+  @@index([tenantId,journalEntryId])
+  @@unique([tenantId,id])
+}
+model TaxCode {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  rate Decimal @db.Decimal(8,4)
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model Vendor {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  email String?
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model PurchaseOrder {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  vendorId String @db.Uuid
+  number String
+  status OrderStatus @default(DRAFT)
+  orderedAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  vendor Vendor @relation(fields:[vendorId],references:[id],onDelete: Restrict)
+  lines PurchaseLine[]
+  @@unique([tenantId,number])
+  @@index([tenantId,vendorId])
+  @@unique([tenantId,id])
+}
+model PurchaseLine {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  purchaseOrderId String @db.Uuid
+  productId String @db.Uuid
+  quantity Decimal @db.Decimal(20,6)
+  unitPrice Decimal @db.Decimal(20,6)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  purchaseOrder PurchaseOrder @relation(fields:[purchaseOrderId],references:[id],onDelete: Cascade)
+  product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,id])
+}
+model Customer {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  email String?
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  salesOrders SalesOrder[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model SalesOrder {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  customerId String @db.Uuid
+  number String
+  status OrderStatus @default(DRAFT)
+  orderedAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  customer Customer @relation(fields:[customerId],references:[id],onDelete: Restrict)
+  lines SalesLine[]
+  @@unique([tenantId,number])
+  @@index([tenantId,customerId])
+  @@unique([tenantId,id])
+}
+model SalesLine {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  salesOrderId String @db.Uuid
+  productId String @db.Uuid
+  quantity Decimal @db.Decimal(20,6)
+  unitPrice Decimal @db.Decimal(20,6)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  salesOrder SalesOrder @relation(fields:[salesOrderId],references:[id],onDelete: Cascade)
+  product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,id])
+}
+model Employee {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  employeeNumber String
+  firstName String
+  lastName String
+  email String?
+  status EmployeeStatus @default(ACTIVE)
+  hiredAt DateTime
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  payrollEntries PayrollEntry[]
+  @@unique([tenantId,employeeNumber])
+  @@unique([tenantId,id])
+}
+model PayrollRun {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  periodStart DateTime
+  periodEnd DateTime
+  status PayrollStatus @default(DRAFT)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  entries PayrollEntry[]
+  @@unique([tenantId,name])
+  @@unique([tenantId,id])
+}
+model PayrollEntry {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  payrollRunId String @db.Uuid
+  employeeId String @db.Uuid
+  gross Decimal @db.Decimal(20,6)
+  deductions Decimal @db.Decimal(20,6)
+  net Decimal @db.Decimal(20,6)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  payrollRun PayrollRun @relation(fields:[payrollRunId],references:[id],onDelete: Cascade)
+  employee Employee @relation(fields:[employeeId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,payrollRunId,employeeId])
+  @@unique([tenantId,id])
+}
+model Lead {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  name String
+  email String?
+  status LeadStatus @default(NEW)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  opportunities Opportunity[]
+  @@index([tenantId,status])
+  @@unique([tenantId,id])
+}
+model Opportunity {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  leadId String? @db.Uuid
+  name String
+  value Decimal @default(0) @db.Decimal(20,6)
+  status OpportunityStatus @default(OPEN)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  lead Lead? @relation(fields:[leadId],references:[id],onDelete: SetNull)
+  @@index([tenantId,status])
+  @@unique([tenantId,id])
+}
+model Project {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  code String
+  name String
+  status ProjectStatus @default(PLANNING)
+  startsAt DateTime?
+  endsAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  tasks ProjectTask[]
+  @@unique([tenantId,code])
+  @@unique([tenantId,id])
+}
+model ProjectTask {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  projectId String @db.Uuid
+  name String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  project Project @relation(fields:[projectId],references:[id],onDelete: Cascade)
+  @@index([tenantId,projectId])
+  @@unique([tenantId,id])
+}
+model BillOfMaterials {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  productId String @db.Uuid
+  version String
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  manufacturingOrders ManufacturingOrder[]
+  @@unique([tenantId,productId,version])
+  @@unique([tenantId,id])
+}
+model ManufacturingOrder {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  productId String @db.Uuid
+  bomId String @db.Uuid
+  number String
+  quantity Decimal @db.Decimal(20,6)
+  status ManufacturingStatus @default(PLANNED)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  product Product @relation(fields:[productId],references:[id],onDelete: Restrict)
+  bom BillOfMaterials @relation(fields:[bomId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,number])
+  @@unique([tenantId,id])
+}
+model ReportDefinition {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  key String
+  name String
+  definition Json
+  status RecordStatus @default(ACTIVE)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,key])
+  @@unique([tenantId,id])
+}
+
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+enum WorkflowStepType {
+  CONDITION
+  ACTION
+  NOTIFICATION
+}
+enum AutomationTriggerType {
+  EVENT
+  SCHEDULED
+  MANUAL
+}
+enum AutomationRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model WorkflowDefinition {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  key String
+  name String
+  version Int @default(1)
+  status WorkflowStatus @default(DRAFT)
+  definition Json
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  steps WorkflowStep[]
+  runs WorkflowRun[]
+  @@unique([tenantId,key,version])
+  @@index([tenantId,status])
+}
+model WorkflowStep {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  workflowId String @db.Uuid
+  stepOrder Int
+  type WorkflowStepType
+  key String
+  configuration Json
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  workflow WorkflowDefinition @relation(fields:[workflowId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,workflowId,stepOrder])
+  @@unique([tenantId,workflowId,key])
+}
+model WorkflowRun {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  workflowId String @db.Uuid
+  correlationId String
+  status WorkflowRunStatus @default(PENDING)
+  input Json
+  output Json?
+  error Json?
+  startedAt DateTime?
+  finishedAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  workflow WorkflowDefinition @relation(fields:[workflowId],references:[id],onDelete: Restrict)
+  @@index([tenantId,status,createdAt])
+  createdAt DateTime @default(now())
+}
+model AutomationRule {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  key String
+  name String
+  triggerType AutomationTriggerType
+  triggerConfig Json
+  actionConfig Json
+  status WorkflowStatus @default(DRAFT)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  runs AutomationRun[]
+  @@unique([tenantId,key])
+  @@index([tenantId,status,triggerType])
+}
+model AutomationRun {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  ruleId String @db.Uuid
+  dedupeKey String
+  status AutomationRunStatus @default(PENDING)
+  input Json
+  output Json?
+  error Json?
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  rule AutomationRule @relation(fields:[ruleId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,ruleId,dedupeKey])
+  @@index([tenantId,status,createdAt])
+}
+
+
+enum ErpInstanceStatus {
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  DECOMMISSIONING
+  DECOMMISSIONED
+  FAILED
+}
+enum ProvisioningOperationType {
+  PROVISION
+  DEPROVISION
+  SUSPEND
+  RESUME
+  REPAIR
+}
+enum ProvisioningOperationStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+enum ControlPlaneAdminStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+model ErpInstance {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @unique @db.Uuid
+  slug String @unique
+  displayName String
+  status ErpInstanceStatus @default(PROVISIONING)
+  region String
+  planCode String
+  metadata Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Restrict)
+  provisioningOperations ProvisioningOperation[]
+  subscription Subscription?
+  @@index([status,region])
+}
+
+model ControlPlaneAdmin {
+  id String @id @default(uuid()) @db.Uuid
+  identityId String @unique @db.Uuid
+  status ControlPlaneAdminStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  identity Identity @relation(fields:[identityId],references:[id],onDelete: Restrict)
+  roleBindings ControlPlaneAdminRole[]
+  provisioningOperations ProvisioningOperation[]
+  auditEvents ControlPlaneAuditEvent[]
+}
+
+model ControlPlaneRole {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  name String
+  bindings ControlPlaneAdminRole[]
+  permissions ControlPlaneRolePermission[]
+}
+
+model ControlPlanePermission {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  name String
+  bindings ControlPlaneRolePermission[]
+}
+
+model ControlPlaneAdminRole {
+  adminId String @db.Uuid
+  roleId String @db.Uuid
+  admin ControlPlaneAdmin @relation(fields:[adminId],references:[id],onDelete: Cascade)
+  role ControlPlaneRole @relation(fields:[roleId],references:[id],onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([adminId,roleId])
+}
+
+model ControlPlaneRolePermission {
+  roleId String @db.Uuid
+  permissionId String @db.Uuid
+  role ControlPlaneRole @relation(fields:[roleId],references:[id],onDelete: Cascade)
+  permission ControlPlanePermission @relation(fields:[permissionId],references:[id],onDelete: Cascade)
+  @@id([roleId,permissionId])
+}
+
+model ProvisioningOperation {
+  id String @id @default(uuid()) @db.Uuid
+  erpInstanceId String @db.Uuid
+  requestedByAdminId String @db.Uuid
+  operationType ProvisioningOperationType
+  status ProvisioningOperationStatus @default(PENDING)
+  idempotencyKey String
+  correlationId String
+  details Json
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  erpInstance ErpInstance @relation(fields:[erpInstanceId],references:[id],onDelete: Restrict)
+  requestedByAdmin ControlPlaneAdmin @relation(fields:[requestedByAdminId],references:[id],onDelete: Restrict)
+  @@unique([erpInstanceId,idempotencyKey])
+  @@index([status,createdAt])
+}
+
+model ControlPlaneAuditEvent {
+  id String @id @default(uuid()) @db.Uuid
+  adminId String @db.Uuid
+  action String
+  resourceType String
+  resourceId String
+  correlationId String
+  metadata Json
+  occurredAt DateTime @default(now())
+  admin ControlPlaneAdmin @relation(fields:[adminId],references:[id],onDelete: Restrict)
+  @@index([adminId,occurredAt])
+  @@index([resourceType,resourceId])
+}
+
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+enum EntitlementStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+}
+
+model SubscriptionPlan {
+  id String @id @default(uuid()) @db.Uuid
+  code String @unique
+  name String
+  description String?
+  billingInterval BillingInterval
+  amount Decimal @db.Decimal(20,6)
+  currencyCode String
+  metadata Json
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  erpInstanceId String @unique @db.Uuid
+  planId String @db.Uuid
+  status SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd DateTime
+  cancelAtPeriodEnd Boolean @default(false)
+  externalCustomerRef String?
+  externalSubscriptionRef String?
+  metadata Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  erpInstance ErpInstance @relation(fields:[erpInstanceId],references:[id],onDelete: Restrict)
+  plan SubscriptionPlan @relation(fields:[planId],references:[id],onDelete: Restrict)
+  invoices Invoice[]
+  entitlements Entitlement[]
+  @@index([tenantId,status])
+  @@index([tenantId,currentPeriodEnd])
+}
+
+model Invoice {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  subscriptionId String @db.Uuid
+  number String
+  status InvoiceStatus @default(DRAFT)
+  currencyCode String
+  subtotal Decimal @db.Decimal(20,6)
+  tax Decimal @db.Decimal(20,6)
+  total Decimal @db.Decimal(20,6)
+  dueAt DateTime?
+  issuedAt DateTime?
+  paidAt DateTime?
+  externalInvoiceRef String?
+  metadata Json
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  subscription Subscription @relation(fields:[subscriptionId],references:[id],onDelete: Restrict)
+  lines InvoiceLine[]
+  payments Payment[]
+  @@unique([tenantId,number])
+  @@index([tenantId,status,dueAt])
+}
+
+model InvoiceLine {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  invoiceId String @db.Uuid
+  description String
+  quantity Decimal @db.Decimal(20,6)
+  unitAmount Decimal @db.Decimal(20,6)
+  amount Decimal @db.Decimal(20,6)
+  metadata Json
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  invoice Invoice @relation(fields:[invoiceId],references:[id],onDelete: Cascade)
+  @@index([tenantId,invoiceId])
+}
+
+model Payment {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  invoiceId String @db.Uuid
+  provider String
+  providerPaymentRef String?
+  idempotencyKey String
+  status PaymentStatus @default(PENDING)
+  amount Decimal @db.Decimal(20,6)
+  currencyCode String
+  failureCode String?
+  processedAt DateTime?
+  metadata Json
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  invoice Invoice @relation(fields:[invoiceId],references:[id],onDelete: Restrict)
+  @@unique([tenantId,provider,idempotencyKey])
+  @@index([tenantId,status,createdAt])
+}
+
+model Entitlement {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  subscriptionId String @db.Uuid
+  key String
+  value Json
+  status EntitlementStatus @default(ACTIVE)
+  startsAt DateTime
+  endsAt DateTime?
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  subscription Subscription @relation(fields:[subscriptionId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,subscriptionId,key])
+  @@index([tenantId,status,endsAt])
+}
+
+model QueueJob {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  type String
+  payload Json
+  status String @default("PENDING")
+  attempt Int @default(0)
+  maxAttempts Int @default(5)
+  idempotencyKey String
+  availableAt DateTime @default(now())
+  claimedAt DateTime?
+  completedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,idempotencyKey])
+  @@index([status,availableAt])
+  @@index([tenantId,status,availableAt])
+  @@index([tenantId,createdAt])
+}

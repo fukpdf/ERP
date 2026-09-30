@@ -21,8 +21,8 @@ import { RbacModule } from '../../src/modules/rbac/rbac.module';
 
 describe('RBAC e2e', () => {
   let app: INestApplication;
-  const adminToken = 'Bearer test-admin-token'; // fixture — real repo wires this through M3.1's test helpers
-  const userToken = 'Bearer test-user-token';
+  const adminToken = 'Bearer ' + 'test-admin'; // fixture — real repo wires this through M3.1's test helpers
+  const userToken = 'Bearer ' + 'test-user';
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) {

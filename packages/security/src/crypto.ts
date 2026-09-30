@@ -1,0 +1,4 @@
+import {createCipheriv,createDecipheriv,randomBytes} from "node:crypto";
+const IV=12,TAG=16,KEY=32;
+export function encryptAes256Gcm(text:string,key:Buffer):string {if(key.length!==KEY)throw new Error("AES-256-GCM requires a 32-byte key");const iv=randomBytes(IV),c=createCipheriv("aes-256-gcm",key,iv);const body=Buffer.concat([c.update(text,"utf8"),c.final()]);return Buffer.concat([iv,c.getAuthTag(),body]).toString("base64url");}
+export function decryptAes256Gcm(payload:string,key:Buffer):string {if(key.length!==KEY)throw new Error("AES-256-GCM requires a 32-byte key");const d=Buffer.from(payload,"base64url");if(d.length<IV+TAG)throw new Error("Invalid encrypted payload");const c=createDecipheriv("aes-256-gcm",key,d.subarray(0,IV));c.setAuthTag(d.subarray(IV,IV+TAG));return Buffer.concat([c.update(d.subarray(IV+TAG)),c.final()]).toString("utf8");}

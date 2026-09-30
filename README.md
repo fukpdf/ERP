@@ -26,8 +26,8 @@ summary:
 - [OWASP_TOP_10.md](./OWASP_TOP_10.md) — control-by-control audit
 - Application security: [CSRF.md](./CSRF.md), [XSS.md](./XSS.md),
   [SQL_INJECTION.md](./SQL_INJECTION.md), [SSRF.md](./SSRF.md),
-  [XXE.md](./XXE.md), [INSECURE_DESERIALIZATION.md](./INSECURE_DESERIALIZATION.md),
-  [BROKEN_ACCESS_CONTROL.md](./BROKEN_ACCESS_CONTROL.md)
+  [XXE.md](./XXE.md), [BROKEN_ACCESS_CONTROL.md](./BROKEN_ACCESS_CONTROL.md)
+  - Missing from current tree and tracked in Phase 0: INSECURE_DESERIALIZATION.md
 - Identity: [AUTHENTICATION.md](./AUTHENTICATION.md),
   [AUTHORIZATION.md](./AUTHORIZATION.md),
   [SESSION_MANAGEMENT.md](./SESSION_MANAGEMENT.md)
@@ -39,14 +39,14 @@ summary:
 - Platform: [RATE_LIMITING.md](./RATE_LIMITING.md),
   [DDOS_PROTECTION.md](./DDOS_PROTECTION.md), [WAF.md](./WAF.md),
   [BOT_PROTECTION.md](./BOT_PROTECTION.md), [ZERO_TRUST.md](./ZERO_TRUST.md)
-- Operations: [INCIDENT_RESPONSE.md](./INCIDENT_RESPONSE.md) +
-  [IR_PLAYBOOKS/](./IR_PLAYBOOKS/), [VULNERABILITY_MANAGEMENT.md](./VULNERABILITY_MANAGEMENT.md)
+- Operations: [INCIDENT_RESPONSE.md](./INCIDENT_RESPONSE.md), [VULNERABILITY_MANAGEMENT.md](./VULNERABILITY_MANAGEMENT.md)
 - Assurance: [PEN_TEST_PLAN.md](./PEN_TEST_PLAN.md),
-  [PEN_TEST_REPORT.md](./PEN_TEST_REPORT.md), [BUG_BOUNTY.md](./BUG_BOUNTY.md),
-  [SECURITY_TRAINING.md](./SECURITY_TRAINING.md)
+  [PEN_TEST_REPORT.md](./PEN_TEST_REPORT.md), [SECURITY_TRAINING.md](./SECURITY_TRAINING.md)
+  - Missing from current tree and tracked in Phase 0: BUG_BOUNTY.md
 - Compliance: [SOC2_CONTROLS.md](./SOC2_CONTROLS.md),
   [ISO27001_CONTROLS.md](./ISO27001_CONTROLS.md),
-  [HIPAA_CONTROLS.md](./HIPAA_CONTROLS.md), [PCI_DSS_CONTROLS.md](./PCI_DSS_CONTROLS.md)
+  [HIPAA_CONTROLS.md](./HIPAA_CONTROLS.md)
+  - Missing from current tree and tracked in Phase 0: PCI_DSS_CONTROLS.md
 - Supply chain: [SBOM.md](./SBOM.md), [SLSA.md](./SLSA.md), [HSM.md](./HSM.md)
 - [SECURITY_SCORECARD.md](./SECURITY_SCORECARD.md) — honest current-state scorecard
 - [DISCLOSURE_POLICY.md](./DISCLOSURE_POLICY.md) — for external researchers
