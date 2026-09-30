@@ -3,8 +3,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import net from "node:net";
 import { randomUUID } from "node:crypto";
 
-const dbUrl = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
-if (!dbUrl) throw new Error("APP_DATABASE_URL or DATABASE_URL is required");
+const dbUrl = process.env.APP_DATABASE_URL;
+const adminDbUrl = process.env.DATABASE_URL;
+if (!dbUrl || !adminDbUrl) throw new Error("APP_DATABASE_URL and DATABASE_URL are required");
 
 async function redisCommand(urlString, command) {
   const url = new URL(urlString);
@@ -30,6 +31,8 @@ async function redisCommand(urlString, command) {
 
 const adapter = new PrismaPg({ connectionString: dbUrl });
 const prisma = new PrismaClient({ adapter });
+const adminAdapter = new PrismaPg({ connectionString: adminDbUrl });
+const adminPrisma = new PrismaClient({ adapter: adminAdapter });
 const report = { timestamp: new Date().toISOString(), database: {}, redis: {} };
 
 try {
@@ -62,8 +65,8 @@ try {
     throw new Error("Expected at least one policy per tenant table; found " + report.database.policyCount + " for " + tenantTables.length + " tables");
   }
 
-  const tenantA = await prisma.tenant.create({ data: { name: "phase7-a-" + randomUUID() } });
-  const tenantB = await prisma.tenant.create({ data: { name: "phase7-b-" + randomUUID() } });
+  const tenantA = await adminPrisma.tenant.create({ data: { name: "phase7-a-" + randomUUID() } });
+  const tenantB = await adminPrisma.tenant.create({ data: { name: "phase7-b-" + randomUUID() } });
   try {
     await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', \${tenantA.id}, true)`;
@@ -88,7 +91,7 @@ try {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', \${tenantB.id}, true)`;
       await tx.organization.deleteMany({ where: { tenantId: tenantB.id } });
     }).catch(() => {});
-    await prisma.tenant.deleteMany({ where: { id: { in: [tenantA.id, tenantB.id] } } }).catch(() => {});
+    await adminPrisma.tenant.deleteMany({ where: { id: { in: [tenantA.id, tenantB.id] } } }).catch(() => {});
   }
 
   if (!process.env.REDIS_URL) throw new Error("REDIS_URL is required");
@@ -104,4 +107,5 @@ try {
   console.log(JSON.stringify(report, null, 2));
 } finally {
   await prisma.$disconnect();
+  await adminPrisma.$disconnect();
 }
