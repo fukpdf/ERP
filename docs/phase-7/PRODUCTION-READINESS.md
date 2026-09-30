@@ -44,22 +44,22 @@ The workflow stores Phase 7 runtime reports as a GitHub Actions artifact named `
 
 ## Latest verified CI evidence
 
-Final Phase 7 verification run: **GitHub Actions run 36686141731 (run #137)** on final implementation commit before this documentation-only update.
+Final Phase 7 verification is included in **GitHub Actions run 36721340645 (run #192)** on commit `8fc3bf00d44397a7d1ef930e2aa1a49e13d6335e`. The complete validation workflow finished **successfully**.
 
-All validation steps passed: install, Prisma generate, typecheck, test suite, Prisma validate, security scan, migration deployment, runtime verification, backup/restore, bounded load test, Redis restart recovery, post-chaos runtime verification, evidence upload, and cleanup.
-
-Runtime evidence from the disposable PostgreSQL 17 / Redis 8 environment:
-- 14 Prisma migrations applied successfully.
-- 54 PostgreSQL RLS policies observed; tenant-scoped tables reported both RLS and FORCE RLS enabled.
-- Non-superuser tenant isolation probe: tenant A saw 1 own row and **0 cross-tenant rows**.
+Fresh disposable PostgreSQL 17 / Redis 8 evidence:
+- 15 Prisma migrations applied successfully, including the Phase 8 queue migration.
+- 55 PostgreSQL RLS policies observed; every tenant-scoped table reported RLS and FORCE RLS enabled, with per-table policy coverage verified.
+- Application runtime role reported `erp_app`, non-superuser and `NOBYPASSRLS`.
+- Tenant isolation probe: tenant A saw 1 own organization row and **0 cross-tenant rows**.
 - Redis PING and read/write probe passed.
 - PostgreSQL backup/restore rehearsal passed.
-- Load gate: 256 requests, concurrency 16, p95 **126.73 ms**, configured maximum **250 ms**, measured throughput **1,118.11 requests/s**.
+- Bounded load gate: 256 requests, concurrency 16, p95 **141.26 ms**, configured maximum **250 ms**, throughput **1,026.67 requests/s**.
 - Redis restart/recovery passed.
-- Runtime re-verification after the failure exercise passed.
+- Post-chaos runtime re-verification passed.
+- The same workflow also passed the Phase 8 queue runtime probe, including cross-tenant queue visibility isolation and tenant-scoped idempotency.
 
-The earlier failed runs during implementation are retained as audit evidence; they exposed and led to fixes for invalid migration SQL, incorrect trigger drops, Prisma 7 client construction, test-role provisioning, backup tool version mismatch, escaped runtime probes, and pipeline-error masking. The final run above is the authoritative Phase 7 verification result for this implementation cycle.
+The previous Phase 7 run remains useful historical evidence, but this run is the authoritative current verification because it validates the Phase 7 gates against the current schema and current repository head.
 
 ## Remaining external gates
 
-These remain explicitly **not claimed as production PASS** because they require deployment/external evidence: production HTTP health/telemetry, immutable deployment rollback, multi-region failover and measured RTO/RPO, production-scale load/soak/capacity testing, WAF/DDoS edge validation, independent penetration testing, and production-equivalent disaster-recovery rehearsal.
+These remain explicitly **not claimed as production PASS** because they require deployment/external evidence: production HTTP health/telemetry, immutable deployment rollback, multi-region failover, measured production RTO/RPO, production-scale load/soak/capacity testing, WAF/DDoS edge validation, independent penetration testing, and production-equivalent disaster-recovery rehearsal.
