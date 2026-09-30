@@ -5,10 +5,14 @@ datasource db {
   provider = "postgresql"
 }
 enum TenantStatus {
-  ACTIVE SUSPENDED DISABLED
+  ACTIVE
+  SUSPENDED
+  DISABLED
 }
 enum IdentityStatus {
-  ACTIVE SUSPENDED DISABLED
+  ACTIVE
+  SUSPENDED
+  DISABLED
 }
 model Tenant {
   id String @id @default(uuid()) @db.Uuid
@@ -142,31 +146,54 @@ model OutboxEvent {
 
 // Phase 2 domain foundation
 enum RecordStatus {
-  ACTIVE INACTIVE
+  ACTIVE
+  INACTIVE
 }
 enum OrderStatus {
-  DRAFT CONFIRMED CANCELLED COMPLETED
+  DRAFT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
 }
 enum JournalStatus {
-  DRAFT POSTED VOID
+  DRAFT
+  POSTED
+  VOID
 }
 enum EmployeeStatus {
-  ACTIVE ON_LEAVE TERMINATED
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
 }
 enum PayrollStatus {
-  DRAFT APPROVED PAID
+  DRAFT
+  APPROVED
+  PAID
 }
 enum LeadStatus {
-  NEW QUALIFIED CONVERTED LOST
+  NEW
+  QUALIFIED
+  CONVERTED
+  LOST
 }
 enum OpportunityStatus {
-  OPEN WON LOST
+  OPEN
+  WON
+  LOST
 }
 enum ProjectStatus {
-  PLANNING ACTIVE ON_HOLD COMPLETED CANCELLED
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
 }
 enum ManufacturingStatus {
-  PLANNED RELEASED IN_PROGRESS COMPLETED CANCELLED
+  PLANNED
+  RELEASED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 model Organization {
@@ -542,19 +569,34 @@ model ReportDefinition {
 
 
 enum WorkflowStatus {
-  DRAFT ACTIVE PAUSED ARCHIVED
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
 }
 enum WorkflowRunStatus {
-  PENDING RUNNING SUCCEEDED FAILED CANCELLED
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
 }
 enum WorkflowStepType {
-  CONDITION ACTION NOTIFICATION
+  CONDITION
+  ACTION
+  NOTIFICATION
 }
 enum AutomationTriggerType {
-  EVENT SCHEDULED MANUAL
+  EVENT
+  SCHEDULED
+  MANUAL
 }
 enum AutomationRunStatus {
-  PENDING RUNNING SUCCEEDED FAILED CANCELLED
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
 }
 
 model WorkflowDefinition {
@@ -634,16 +676,31 @@ model AutomationRun {
 
 
 enum ErpInstanceStatus {
-  PROVISIONING ACTIVE SUSPENDED DECOMMISSIONING DECOMMISSIONED FAILED
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  DECOMMISSIONING
+  DECOMMISSIONED
+  FAILED
 }
 enum ProvisioningOperationType {
-  PROVISION DEPROVISION SUSPEND RESUME REPAIR
+  PROVISION
+  DEPROVISION
+  SUSPEND
+  RESUME
+  REPAIR
 }
 enum ProvisioningOperationStatus {
-  PENDING RUNNING SUCCEEDED FAILED CANCELLED
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
 }
 enum ControlPlaneAdminStatus {
-  ACTIVE SUSPENDED DISABLED
+  ACTIVE
+  SUSPENDED
+  DISABLED
 }
 
 model ErpInstance {
@@ -741,19 +798,35 @@ model ControlPlaneAuditEvent {
 
 
 enum SubscriptionStatus {
-  TRIALING ACTIVE PAST_DUE PAUSED CANCELLED EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+  EXPIRED
 }
 enum BillingInterval {
-  MONTHLY YEARLY CUSTOM
+  MONTHLY
+  YEARLY
+  CUSTOM
 }
 enum InvoiceStatus {
-  DRAFT OPEN PAID VOID UNCOLLECTIBLE
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
 }
 enum PaymentStatus {
-  PENDING SUCCEEDED FAILED REFUNDED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
 }
 enum EntitlementStatus {
-  ACTIVE SUSPENDED EXPIRED
+  ACTIVE
+  SUSPENDED
+  EXPIRED
 }
 
 model SubscriptionPlan {
