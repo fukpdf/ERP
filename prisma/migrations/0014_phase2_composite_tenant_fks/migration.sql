@@ -92,9 +92,9 @@ DO $$ BEGIN
 END $$;
 
 ALTER TABLE "BusinessUnit" ADD CONSTRAINT "BusinessUnit_organization_tenant_fk" FOREIGN KEY ("tenantId","organizationId") REFERENCES "Organization" ("tenantId","id") ON DELETE CASCADE;
-ALTER TABLE "Product" ADD CONSTRAINT "Product_category_tenant_fk" FOREIGN KEY ("tenantId","categoryId") REFERENCES "ProductCategory" ("tenantId","id") ON DELETE SET NULL ("categoryId");
+ALTER TABLE "Product" ADD CONSTRAINT "Product_category_tenant_fk" FOREIGN KEY ("tenantId","categoryId") REFERENCES "ProductCategory" ("tenantId","id") ON DELETE SET NULL;
 ALTER TABLE "Product" ADD CONSTRAINT "Product_uom_tenant_fk" FOREIGN KEY ("tenantId","uomId") REFERENCES "UnitOfMeasure" ("tenantId","id") ON DELETE NO ACTION;
-ALTER TABLE "Warehouse" ADD CONSTRAINT "Warehouse_business_unit_tenant_fk" FOREIGN KEY ("tenantId","businessUnitId") REFERENCES "BusinessUnit" ("tenantId","id") ON DELETE SET NULL ("businessUnitId");
+ALTER TABLE "Warehouse" ADD CONSTRAINT "Warehouse_business_unit_tenant_fk" FOREIGN KEY ("tenantId","businessUnitId") REFERENCES "BusinessUnit" ("tenantId","id") ON DELETE SET NULL;
 ALTER TABLE "InventoryStock" ADD CONSTRAINT "InventoryStock_warehouse_tenant_fk" FOREIGN KEY ("tenantId","warehouseId") REFERENCES "Warehouse" ("tenantId","id") ON DELETE CASCADE;
 ALTER TABLE "InventoryStock" ADD CONSTRAINT "InventoryStock_product_tenant_fk" FOREIGN KEY ("tenantId","productId") REFERENCES "Product" ("tenantId","id") ON DELETE NO ACTION;
 ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_fiscal_period_tenant_fk" FOREIGN KEY ("tenantId","fiscalPeriodId") REFERENCES "FiscalPeriod" ("tenantId","id") ON DELETE NO ACTION;
@@ -108,7 +108,7 @@ ALTER TABLE "SalesLine" ADD CONSTRAINT "SalesLine_order_tenant_fk" FOREIGN KEY (
 ALTER TABLE "SalesLine" ADD CONSTRAINT "SalesLine_product_tenant_fk" FOREIGN KEY ("tenantId","productId") REFERENCES "Product" ("tenantId","id") ON DELETE NO ACTION;
 ALTER TABLE "PayrollEntry" ADD CONSTRAINT "PayrollEntry_run_tenant_fk" FOREIGN KEY ("tenantId","payrollRunId") REFERENCES "PayrollRun" ("tenantId","id") ON DELETE CASCADE;
 ALTER TABLE "PayrollEntry" ADD CONSTRAINT "PayrollEntry_employee_tenant_fk" FOREIGN KEY ("tenantId","employeeId") REFERENCES "Employee" ("tenantId","id") ON DELETE NO ACTION;
-ALTER TABLE "Opportunity" ADD CONSTRAINT "Opportunity_lead_tenant_fk" FOREIGN KEY ("tenantId","leadId") REFERENCES "Lead" ("tenantId","id") ON DELETE SET NULL ("leadId");
+ALTER TABLE "Opportunity" ADD CONSTRAINT "Opportunity_lead_tenant_fk" FOREIGN KEY ("tenantId","leadId") REFERENCES "Lead" ("tenantId","id") ON DELETE SET NULL;
 ALTER TABLE "ProjectTask" ADD CONSTRAINT "ProjectTask_project_tenant_fk" FOREIGN KEY ("tenantId","projectId") REFERENCES "Project" ("tenantId","id") ON DELETE CASCADE;
 ALTER TABLE "BillOfMaterials" ADD CONSTRAINT "BillOfMaterials_product_tenant_fk" FOREIGN KEY ("tenantId","productId") REFERENCES "Product" ("tenantId","id") ON DELETE NO ACTION;
 ALTER TABLE "ManufacturingOrder" ADD CONSTRAINT "ManufacturingOrder_product_tenant_fk" FOREIGN KEY ("tenantId","productId") REFERENCES "Product" ("tenantId","id") ON DELETE NO ACTION;
