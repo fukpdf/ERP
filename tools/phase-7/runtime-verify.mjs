@@ -60,6 +60,35 @@ try {
     throw new Error("Expected at least one policy per tenant table; found " + report.database.policyCount + " for " + tenantTables.length + " tables");
   }
 
+  const tenantA = await prisma.tenant.create({ data: { name: "phase7-a-" + randomUUID() } });
+  const tenantB = await prisma.tenant.create({ data: { name: "phase7-b-" + randomUUID() } });
+  try {
+    await prisma.$transaction(async tx => {
+      await tx.$executeRaw\`SELECT set_config('app.tenant_id', \${tenantA.id}, true)\`;
+      await tx.organization.create({ data: { tenantId: tenantA.id, name: "Phase 7 A", code: "P7A-" + tenantA.id.slice(0, 8) } });
+      await tx.$executeRaw\`SELECT set_config('app.tenant_id', \${tenantB.id}, true)\`;
+      await tx.organization.create({ data: { tenantId: tenantB.id, name: "Phase 7 B", code: "P7B-" + tenantB.id.slice(0, 8) } });
+    });
+    const visibleToA = await prisma.$transaction(async tx => {
+      await tx.$executeRaw\`SELECT set_config('app.tenant_id', \${tenantA.id}, true)\`;
+      return tx.organization.findMany({ orderBy: { code: "asc" } });
+    });
+    const crossTenant = await prisma.$transaction(async tx => {
+      await tx.$executeRaw\`SELECT set_config('app.tenant_id', \${tenantA.id}, true)\`;
+      return tx.organization.findFirst({ where: { tenantId: tenantB.id } });
+    });
+    report.database.tenantIsolation = { visibleRowsForA: visibleToA.length, crossTenantRowVisible: Boolean(crossTenant) };
+    if (visibleToA.length !== 1 || crossTenant) throw new Error("Tenant RLS isolation probe failed");
+  } finally {
+    await prisma.$transaction(async tx => {
+      await tx.$executeRaw\`SELECT set_config('app.tenant_id', \${tenantA.id}, true)\`;
+      await tx.organization.deleteMany({ where: { tenantId: tenantA.id } });
+      await tx.$executeRaw\`SELECT set_config('app.tenant_id', \${tenantB.id}, true)\`;
+      await tx.organization.deleteMany({ where: { tenantId: tenantB.id } });
+    }).catch(() => {});
+    await prisma.tenant.deleteMany({ where: { id: { in: [tenantA.id, tenantB.id] } } }).catch(() => {});
+  }
+
   if (!process.env.REDIS_URL) throw new Error("REDIS_URL is required");
   const redisStart = performance.now();
   const pong = await redisCommand(process.env.REDIS_URL, ["PING"]);
