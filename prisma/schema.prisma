@@ -64,6 +64,7 @@ model Tenant {
   invoiceLines InvoiceLine[]
   payments Payment[]
   entitlements Entitlement[]
+  queueJobs QueueJob[]
   @@index([status])
 }
 model Identity {
