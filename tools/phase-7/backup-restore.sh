@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-compose_file="\${PHASE7_COMPOSE_FILE:-infra/phase-7/docker-compose.yml}"
-service="\${PHASE7_POSTGRES_SERVICE:-postgres}"
+compose_file="${PHASE7_COMPOSE_FILE:-infra/phase-7/docker-compose.yml}"
+service="${PHASE7_POSTGRES_SERVICE:-postgres}"
 
 docker compose -f "$compose_file" exec -T "$service" bash -lc '
   set -euo pipefail
