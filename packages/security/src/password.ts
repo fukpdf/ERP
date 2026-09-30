@@ -1,0 +1,4 @@
+import {randomBytes,scryptSync,timingSafeEqual} from "node:crypto";
+const V="scrypt-v1",SALT=32,OUT=64,N=131072,R=8,P=1;
+export function hashPassword(password:string):string {if(password.length<12||password.length>1024)throw new Error("Password length must be 12..1024 characters");const salt=randomBytes(SALT),hash=scryptSync(password,salt,OUT,{N,r:R,p:P,maxmem:256*1024*1024});return [V,N,R,P,salt.toString("base64url"),hash.toString("base64url")].join("$");}
+export function verifyPassword(password:string,encoded:string):boolean {try{const p=encoded.split("$");if(p.length!==6||p[0]!==V)return false;const salt=Buffer.from(p[4],"base64url"),expected=Buffer.from(p[5],"base64url");if(salt.length!==SALT||expected.length!==OUT)return false;const actual=scryptSync(password,salt,OUT,{N:Number(p[1]),r:Number(p[2]),p:Number(p[3]),maxmem:256*1024*1024});return timingSafeEqual(actual,expected);}catch{return false;}}
