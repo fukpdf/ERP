@@ -91,6 +91,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Verify Phase 8 durable queue runtime
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
+          APP_DATABASE_URL: postgresql://erp_app:phase7-ci-app@127.0.0.1:54329/erp
+        run: pnpm phase8:runtime
+
       - name: Stop disposable runtime
         if: always()
         run: docker compose -f infra/phase-7/docker-compose.yml down -v
