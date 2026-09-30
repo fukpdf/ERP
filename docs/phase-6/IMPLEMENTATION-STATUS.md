@@ -1,9 +1,26 @@
 # Phase 6 Implementation Status
 
-Baseline: 022a4dfbfe13c8db9e8ed2826ffcb6f958fd7be7
+Final implementation commit: ceb6f9b83ab78099d5562d445072e19f6e6e3d6c
 
-Implemented in this phase: packages/security defensive primitives for security headers/CSP, CSRF, AES-256-GCM, scrypt password hashing, bounded sliding-window rate limiting, PII/credential redaction, and SSRF-safe pinned outbound requests; plus tools/security/scan-source.mjs and phase evidence.
+## Implemented
+- Security headers/CSP and CORS allowlist primitive.
+- Session-bound HMAC CSRF token primitive.
+- AES-256-GCM authenticated encryption primitive.
+- scrypt password hashing with fixed, memory-hard parameters and parameter-tamper rejection.
+- Bounded sliding-window rate limiter.
+- PII/credential redaction helpers.
+- SSRF validation plus pinned outbound HTTP(S) requests with redirect-free behavior and private/loopback/IPv4-mapped-IPv6 rejection.
+- Source secret-pattern scanner.
+- Phase 6 contract, verification, compliance mapping, and references.
 
-The prior repository audit found security documentation referencing packages/security code that was absent from the actual Git tree. This phase closes that documentation/code mismatch.
+## Executed evidence
+- Focused TypeScript strict compilation: PASS.
+- Phase 6 security regression suite: 8/8 PASS.
+- Source secret scan: PASS.
+- Regression coverage includes password KDF-parameter tampering and IPv4-mapped IPv6 SSRF blocking.
 
-Runtime blockers: no verified disposable PostgreSQL/Redis deployment, no staging HTTP target, no independent penetration-test environment, no deployed WAF/DDoS edge, and no external compliance audit evidence.
+## Repository-wide verification status
+GitHub Actions reports no workflow run for the Phase 6 merge commit, so full root validation is not claimed as executed by CI.
+
+## Runtime blockers
+No verified disposable PostgreSQL/Redis deployment, no staging HTTP target, no deployed WAF/DDoS edge, no independent penetration-test environment, and no external SOC 2/ISO 27001/HIPAA audit evidence are available in this execution context.
