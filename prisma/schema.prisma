@@ -3,10 +3,13 @@ generator client {
 }
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
-enum TenantStatus { ACTIVE SUSPENDED DISABLED }
-enum IdentityStatus { ACTIVE SUSPENDED DISABLED }
+enum TenantStatus {
+  ACTIVE SUSPENDED DISABLED
+}
+enum IdentityStatus {
+  ACTIVE SUSPENDED DISABLED
+}
 model Tenant {
   id String @id @default(uuid()) @db.Uuid
   name String
@@ -138,15 +141,33 @@ model OutboxEvent {
 }
 
 // Phase 2 domain foundation
-enum RecordStatus { ACTIVE INACTIVE }
-enum OrderStatus { DRAFT CONFIRMED CANCELLED COMPLETED }
-enum JournalStatus { DRAFT POSTED VOID }
-enum EmployeeStatus { ACTIVE ON_LEAVE TERMINATED }
-enum PayrollStatus { DRAFT APPROVED PAID }
-enum LeadStatus { NEW QUALIFIED CONVERTED LOST }
-enum OpportunityStatus { OPEN WON LOST }
-enum ProjectStatus { PLANNING ACTIVE ON_HOLD COMPLETED CANCELLED }
-enum ManufacturingStatus { PLANNED RELEASED IN_PROGRESS COMPLETED CANCELLED }
+enum RecordStatus {
+  ACTIVE INACTIVE
+}
+enum OrderStatus {
+  DRAFT CONFIRMED CANCELLED COMPLETED
+}
+enum JournalStatus {
+  DRAFT POSTED VOID
+}
+enum EmployeeStatus {
+  ACTIVE ON_LEAVE TERMINATED
+}
+enum PayrollStatus {
+  DRAFT APPROVED PAID
+}
+enum LeadStatus {
+  NEW QUALIFIED CONVERTED LOST
+}
+enum OpportunityStatus {
+  OPEN WON LOST
+}
+enum ProjectStatus {
+  PLANNING ACTIVE ON_HOLD COMPLETED CANCELLED
+}
+enum ManufacturingStatus {
+  PLANNED RELEASED IN_PROGRESS COMPLETED CANCELLED
+}
 
 model Organization {
   id String @id @default(uuid()) @db.Uuid
@@ -520,11 +541,21 @@ model ReportDefinition {
 }
 
 
-enum WorkflowStatus { DRAFT ACTIVE PAUSED ARCHIVED }
-enum WorkflowRunStatus { PENDING RUNNING SUCCEEDED FAILED CANCELLED }
-enum WorkflowStepType { CONDITION ACTION NOTIFICATION }
-enum AutomationTriggerType { EVENT SCHEDULED MANUAL }
-enum AutomationRunStatus { PENDING RUNNING SUCCEEDED FAILED CANCELLED }
+enum WorkflowStatus {
+  DRAFT ACTIVE PAUSED ARCHIVED
+}
+enum WorkflowRunStatus {
+  PENDING RUNNING SUCCEEDED FAILED CANCELLED
+}
+enum WorkflowStepType {
+  CONDITION ACTION NOTIFICATION
+}
+enum AutomationTriggerType {
+  EVENT SCHEDULED MANUAL
+}
+enum AutomationRunStatus {
+  PENDING RUNNING SUCCEEDED FAILED CANCELLED
+}
 
 model WorkflowDefinition {
   id String @id @default(uuid()) @db.Uuid
@@ -602,10 +633,18 @@ model AutomationRun {
 }
 
 
-enum ErpInstanceStatus { PROVISIONING ACTIVE SUSPENDED DECOMMISSIONING DECOMMISSIONED FAILED }
-enum ProvisioningOperationType { PROVISION DEPROVISION SUSPEND RESUME REPAIR }
-enum ProvisioningOperationStatus { PENDING RUNNING SUCCEEDED FAILED CANCELLED }
-enum ControlPlaneAdminStatus { ACTIVE SUSPENDED DISABLED }
+enum ErpInstanceStatus {
+  PROVISIONING ACTIVE SUSPENDED DECOMMISSIONING DECOMMISSIONED FAILED
+}
+enum ProvisioningOperationType {
+  PROVISION DEPROVISION SUSPEND RESUME REPAIR
+}
+enum ProvisioningOperationStatus {
+  PENDING RUNNING SUCCEEDED FAILED CANCELLED
+}
+enum ControlPlaneAdminStatus {
+  ACTIVE SUSPENDED DISABLED
+}
 
 model ErpInstance {
   id String @id @default(uuid()) @db.Uuid
@@ -701,11 +740,21 @@ model ControlPlaneAuditEvent {
 }
 
 
-enum SubscriptionStatus { TRIALING ACTIVE PAST_DUE PAUSED CANCELLED EXPIRED }
-enum BillingInterval { MONTHLY YEARLY CUSTOM }
-enum InvoiceStatus { DRAFT OPEN PAID VOID UNCOLLECTIBLE }
-enum PaymentStatus { PENDING SUCCEEDED FAILED REFUNDED }
-enum EntitlementStatus { ACTIVE SUSPENDED EXPIRED }
+enum SubscriptionStatus {
+  TRIALING ACTIVE PAST_DUE PAUSED CANCELLED EXPIRED
+}
+enum BillingInterval {
+  MONTHLY YEARLY CUSTOM
+}
+enum InvoiceStatus {
+  DRAFT OPEN PAID VOID UNCOLLECTIBLE
+}
+enum PaymentStatus {
+  PENDING SUCCEEDED FAILED REFUNDED
+}
+enum EntitlementStatus {
+  ACTIVE SUSPENDED EXPIRED
+}
 
 model SubscriptionPlan {
   id String @id @default(uuid()) @db.Uuid
