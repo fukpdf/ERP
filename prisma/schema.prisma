@@ -61,6 +61,7 @@ model Tenant {
   erpInstance ErpInstance?
   subscriptions Subscription[]
   invoices Invoice[]
+  invoiceLines InvoiceLine[]
   payments Payment[]
   entitlements Entitlement[]
   @@index([status])
