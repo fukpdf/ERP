@@ -8,7 +8,7 @@ if (!Number.isInteger(concurrency) || concurrency < 1) throw new Error("Invalid 
 if (!Number.isInteger(requests) || requests < concurrency) throw new Error("Invalid requests");
 const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
 const durations = []; let next = 0;
-const worker = async () => { while (true) { const i = next++; if (i >= requests) return; const start = performance.now(); await prisma.$queryRaw\`SELECT 1 AS ok\`; durations.push(performance.now() - start); } };
+const worker = async () => { while (true) { const i = next++; if (i >= requests) return; const start = performance.now(); await prisma.$queryRaw`SELECT 1 AS ok`; durations.push(performance.now() - start); } };
 const started = performance.now();
 await Promise.all(Array.from({ length: concurrency }, worker));
 await prisma.$disconnect();
