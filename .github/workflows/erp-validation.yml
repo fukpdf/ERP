@@ -44,6 +44,7 @@ jobs:
           APP_DATABASE_URL: postgresql://erp_app:phase7-ci-app@127.0.0.1:54329/erp
           REDIS_URL: redis://127.0.0.1:63790
         run: |
+          set -o pipefail
           mkdir -p artifacts/phase-7
           pnpm phase7:runtime | tee artifacts/phase-7/runtime-before.json
 
@@ -52,7 +53,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
           PHASE7_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54329/postgres
           PHASE7_RESTORE_URL: postgresql://postgres:postgres@127.0.0.1:54329/phase7_restore
-        run: bash tools/phase-7/backup-restore.sh | tee artifacts/phase-7/backup-restore.txt
+        run: set -o pipefail; bash tools/phase-7/backup-restore.sh | tee artifacts/phase-7/backup-restore.txt
 
       - name: Run bounded database load test
         env:
@@ -60,17 +61,17 @@ jobs:
           PHASE7_LOAD_CONCURRENCY: 16
           PHASE7_LOAD_REQUESTS: 256
           PHASE7_LOAD_MAX_P95_MS: 250
-        run: pnpm phase7:load | tee artifacts/phase-7/load.json
+        run: set -o pipefail; pnpm phase7:load | tee artifacts/phase-7/load.json
 
       - name: Exercise Redis restart recovery
-        run: pnpm phase7:chaos | tee artifacts/phase-7/redis-chaos.txt
+        run: set -o pipefail; pnpm phase7:chaos | tee artifacts/phase-7/redis-chaos.txt
 
       - name: Re-verify runtime after failure exercise
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/erp
           APP_DATABASE_URL: postgresql://erp_app:phase7-ci-app@127.0.0.1:54329/erp
           REDIS_URL: redis://127.0.0.1:63790
-        run: pnpm phase7:runtime | tee artifacts/phase-7/runtime-after.json
+        run: set -o pipefail; pnpm phase7:runtime | tee artifacts/phase-7/runtime-after.json
 
       - name: Upload Phase 7 evidence
         if: always()
