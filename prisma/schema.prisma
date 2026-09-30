@@ -940,3 +940,25 @@ model Entitlement {
   @@unique([tenantId,subscriptionId,key])
   @@index([tenantId,status,endsAt])
 }
+
+model QueueJob {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  type String
+  payload Json
+  status String @default("PENDING")
+  attempt Int @default(0)
+  maxAttempts Int @default(5)
+  idempotencyKey String
+  availableAt DateTime @default(now())
+  claimedAt DateTime?
+  completedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete: Cascade)
+  @@unique([tenantId,idempotencyKey])
+  @@index([status,availableAt])
+  @@index([tenantId,status,availableAt])
+  @@index([tenantId,createdAt])
+}
