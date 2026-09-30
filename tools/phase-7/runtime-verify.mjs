@@ -58,11 +58,30 @@ try {
   if (insecure.length) throw new Error("Tenant tables without RLS+FORCE RLS: " + insecure.map(t => t.table_name).join(", "));
 
   const policyRows = await prisma.$queryRaw`
-    SELECT COUNT(*)::int AS count FROM pg_policies WHERE schemaname='public'
+    SELECT tablename, COUNT(*)::int AS policy_count
+    FROM pg_policies
+    WHERE schemaname='public'
+    GROUP BY tablename
+    ORDER BY tablename
   `;
-  report.database.policyCount = policyRows[0].count;
-  if (report.database.policyCount < tenantTables.length) {
-    throw new Error("Expected at least one policy per tenant table; found " + report.database.policyCount + " for " + tenantTables.length + " tables");
+  report.database.policyCount = policyRows.reduce((sum, row) => sum + row.policy_count, 0);
+  report.database.policyCoverage = policyRows;
+  const policyTables = new Set(policyRows.map(row => row.tablename));
+  const uncoveredTenantTables = tenantTables.filter(table => !policyTables.has(table.table_name));
+  if (uncoveredTenantTables.length) {
+    throw new Error("Tenant tables without RLS policies: " + uncoveredTenantTables.map(t => t.table_name).join(", "));
+  }
+
+  const roleState = await prisma.$queryRaw`
+    SELECT current_user AS current_user,
+           r.rolsuper AS is_superuser,
+           r.rolbypassrls AS bypasses_rls
+    FROM pg_roles r
+    WHERE r.rolname = current_user
+  `;
+  report.database.appRole = roleState[0];
+  if (!roleState[0] || roleState[0].is_superuser || roleState[0].bypasses_rls) {
+    throw new Error("Runtime application role must be non-superuser and NOBYPASSRLS");
   }
 
   const tenantA = await adminPrisma.tenant.create({ data: { name: "phase7-a-" + randomUUID() } });
