@@ -1,0 +1,10 @@
+{
+  "name": "erp-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Incremental ERP foundation for Replit",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}
