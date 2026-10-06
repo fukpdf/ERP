@@ -1,0 +1,119 @@
+{
+  "products": [
+    {
+      "id": "prod-001",
+      "sku": "OFF-1001",
+      "name": "Ergonomic Office Chair",
+      "category": "Office",
+      "price": 249.99,
+      "stock": 42,
+      "reorderLevel": 12,
+      "status": "active"
+    },
+    {
+      "id": "prod-002",
+      "sku": "OFF-1002",
+      "name": "Adjustable Standing Desk",
+      "category": "Office",
+      "price": 499,
+      "stock": 18,
+      "reorderLevel": 8,
+      "status": "active"
+    },
+    {
+      "id": "prod-003",
+      "sku": "TEC-2001",
+      "name": "27-inch 4K Monitor",
+      "category": "Technology",
+      "price": 379,
+      "stock": 7,
+      "reorderLevel": 10,
+      "status": "active"
+    },
+    {
+      "id": "prod-004",
+      "sku": "TEC-2002",
+      "name": "Wireless Keyboard",
+      "category": "Technology",
+      "price": 79.99,
+      "stock": 64,
+      "reorderLevel": 20,
+      "status": "active"
+    },
+    {
+      "id": "prod-005",
+      "sku": "SUP-3001",
+      "name": "Premium Notebook Pack",
+      "category": "Supplies",
+      "price": 24.5,
+      "stock": 5,
+      "reorderLevel": 15,
+      "status": "active"
+    }
+  ],
+  "customers": [
+    {
+      "id": "cust-001",
+      "name": "Northstar Consulting",
+      "email": "accounts@northstar.example",
+      "phone": "+1 555 010 2200",
+      "city": "Austin",
+      "status": "active",
+      "createdAt": "2026-09-08"
+    },
+    {
+      "id": "cust-002",
+      "name": "Vertex Health Systems",
+      "email": "procurement@vertex.example",
+      "phone": "+1 555 010 3811",
+      "city": "Boston",
+      "status": "active",
+      "createdAt": "2026-09-12"
+    },
+    {
+      "id": "cust-003",
+      "name": "Brightline Studio",
+      "email": "hello@brightline.example",
+      "phone": "+1 555 010 7742",
+      "city": "Chicago",
+      "status": "active",
+      "createdAt": "2026-09-19"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-1001",
+      "number": "SO-2026-001",
+      "customerId": "cust-001",
+      "status": "confirmed",
+      "total": 739.95,
+      "createdAt": "2026-09-24T10:15:00.000Z",
+      "items": [
+        { "productId": "prod-001", "name": "Ergonomic Office Chair", "quantity": 2, "price": 249.99 },
+        { "productId": "prod-004", "name": "Wireless Keyboard", "quantity": 3, "price": 79.99 }
+      ]
+    },
+    {
+      "id": "ord-1002",
+      "number": "SO-2026-002",
+      "customerId": "cust-002",
+      "status": "processing",
+      "total": 499,
+      "createdAt": "2026-09-26T14:45:00.000Z",
+      "items": [
+        { "productId": "prod-002", "name": "Adjustable Standing Desk", "quantity": 1, "price": 499 }
+      ]
+    },
+    {
+      "id": "ord-1003",
+      "number": "SO-2026-003",
+      "customerId": "cust-003",
+      "status": "draft",
+      "total": 758,
+      "createdAt": "2026-09-28T09:20:00.000Z",
+      "items": [
+        { "productId": "prod-003", "name": "27-inch 4K Monitor", "quantity": 2, "price": 379 }
+      ]
+    }
+  ]
+}

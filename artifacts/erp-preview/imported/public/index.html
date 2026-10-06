@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1220" />
+    <title>Northstar ERP</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div><strong>Northstar</strong><span>ERP workspace</span></div>
+        </div>
+        <div class="workspace-switcher"><span class="status-dot"></span><span>Northstar Operations</span><span class="chevron">⌄</span></div>
+        <nav class="main-nav" aria-label="Main navigation">
+          <p class="nav-label">Workspace</p>
+          <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span>Overview</button>
+          <button class="nav-item" data-view="products"><span class="nav-icon">◈</span>Products <span class="nav-count" id="product-nav-count">0</span></button>
+          <button class="nav-item" data-view="customers"><span class="nav-icon">♙</span>Customers <span class="nav-count" id="customer-nav-count">0</span></button>
+          <button class="nav-item" data-view="orders"><span class="nav-icon">↗</span>Sales orders</button>
+          <p class="nav-label">Coming next</p>
+          <button class="nav-item muted" disabled><span class="nav-icon">⊙</span>Purchasing <span class="soon">Soon</span></button>
+          <button class="nav-item muted" disabled><span class="nav-icon">◎</span>Accounting <span class="soon">Soon</span></button>
+          <button class="nav-item muted" disabled><span class="nav-icon">⌘</span>People <span class="soon">Soon</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="help-card"><span class="help-icon">?</span><div><strong>Need a hand?</strong><small>Read the setup guide</small></div></div>
+          <div class="user-chip"><div class="avatar">AM</div><div><strong>Alex Morgan</strong><small>Administrator</small></div><span class="more">•••</span></div>
+        </div>
+      </aside>
+      <main class="main-content">
+        <header class="topbar">
+          <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
+          <div class="breadcrumbs"><span>Northstar Operations</span><b>/</b><strong id="breadcrumb">Overview</strong></div>
+          <div class="top-actions"><button class="icon-button" title="Notifications">♢<span class="notification-dot"></span></button><button class="avatar top-avatar">AM</button></div>
+        </header>
+        <div id="toast-region" class="toast-region" aria-live="polite"></div>
+        <section id="app" class="content"></section>
+      </main>
+    </div>
+    <div id="modal-root"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

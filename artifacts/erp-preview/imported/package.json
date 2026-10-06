@@ -1,0 +1,33 @@
+{
+  "name": "erp-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Incremental ERP foundation for Replit",
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "security:scan": "pnpm audit"
+  },
+  "pnpm": {
+    "overrides": {
+      "deepmerge-ts": "8.0.2",
+      "mysql2": "3.23.1"
+    }
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.0",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
+  }
+}

@@ -1,0 +1,43 @@
+SISOFT-MERGE-MANIFEST.txt
+Merge date: 2026-09-19
+Source archives (23):
+  ERP-MERGED-AUDITED-20260917.zip (Lineage A)
+  ERP-STAGE40..51,53..61-*-20260917/18.zip (Lineage B, Stage 52 archive never supplied)
+  his-1-patient-core-slice-VERIFIED-20260917200119.zip
+  his-2-ancillary-clinical-20260918-040401.zip
+
+Canonical base: Stage 61 snapshot (wrapper folder "stage58/" stripped).
+
+Major merged components:
+  - 30 packages (full Lineage-A set; canon previously had 6)
+  - 12 apps/api modules ported from Lineage A (accounting, ai, audit, control-plane,
+    documents, employee, handoff, notifications, portal-auth, settings, sync, terminology)
+  - infra/ (Helm charts, Postgres config, security-hardening configs)
+  - tools/ (chaos engineering, pentest, security scanning)
+  - HIS-1 patient-core module + package
+  - HIS-2 ancillary clinical packages (lab, radiology, blood-bank, pharmacy engines)
+  - docs/architecture/100M-SCALE-ARCHITECTURE.md and MULTI-ERP-CONTROL-PLANE.md (new, this pass)
+  - STAGE-RECONCILIATION.md, MERGE-INVENTORY.md, MERGE-DECISIONS.md (new, this pass)
+
+Known conflicts / unresolved items:
+  - Stage 52 source zip never supplied; reconstructed only from doc references in Stage 55.
+  - pnpm-lock.yaml absent from every supplied archive (Stage 60 E60-001) — blocks real installs.
+  - HIS Prisma model files (his-core-clinical-models.prisma, his-ancillary-models.prisma) are
+    standalone, NOT spliced into prisma/schema.prisma — needs a dedicated reconciliation pass.
+  - 42 newly-merged modules/packages carry no Stage-41-61-style verification evidence of their own.
+  - 4 empty brace-expansion packaging-bug directories found across 3 independently-dated source
+    archives and discarded (see MERGE-DECISIONS.md Decision 4) — likely a systemic bug in
+    whatever pipeline produces these zips upstream.
+
+Static verification performed this pass:
+  - Structural integrity (every package has a manifest): PASS
+  - No leftover packaging-bug artifacts: PASS (after cleanup)
+  - prisma/schema.prisma model count unchanged at 193 (no accidental truncation during merge): PASS
+  - No canon module silently duplicated by a merged package (grep-verified for the 6
+    previously-contested packages): PASS
+
+Runtime verification: BLOCKED in this environment (no network, no PostgreSQL, no Redis, no Docker,
+no lockfile) — consistent with every Stage 41-61 source document's own finding. No runtime PASS is
+claimed anywhere in this deliverable that was not independently re-verified this pass.
+
+Total files in final tree: 2171

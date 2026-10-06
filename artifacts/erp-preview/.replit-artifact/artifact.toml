@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ERP Preview"
+description = "A runnable preview of the ERP foundation from fukpdf/ERP, with a dashboard, product inventory, customers, and sales orders backed by local demo data."
+version = "1.0.0"
+id = "artifacts/erp-preview"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20210
+
+[services.development]
+run = "pnpm --filter @workspace/erp-preview run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/erp-preview", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/erp-preview/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20210"
+BASE_PATH = "/"
