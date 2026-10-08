@@ -193,3 +193,39 @@
 - **Reason:** Replaced no-op `echo` placeholder with a genuine, production-grade linter. `oxlint` runs in <15ms across all workspace packages with zero transitive dependencies, enforcing strict correctness and unused variable rules with non-zero exit codes on violations.
 - **Alternatives Considered:** Heavy ESLint setup with complex plugin dependency graph: Deferred for later UI phases; `oxlint` provides immediate, reliable verification without package bloat.
 - **Impact:** `npm run lint` strictly enforces code quality across all packages.
+
+---
+
+### ADR-019: Runtime Lifecycle State Machine with Multi-Phase Drain and Graceful Termination {#adr-019}
+- **Status:** ACCEPTED
+- **Decision:** Implement an explicit state machine (`INITIALIZING` → `READY` → `DRAINING` → `TERMINATING` → `TERMINATED`, with failure transition to `FAILED`) in `@erp/core/runtime/lifecycle.ts`.
+- **Reason:** Guarantees deterministic, graceful process termination on `SIGTERM`/`SIGINT`. Ingress is stopped before draining active workloads; registered shutdown handlers execute in reverse order of registration (LIFO); unhandled timeouts or repeated signals are handled idempotently.
+- **Alternatives Considered:** Relying on default Node.js process termination or unmanaged `process.exit()`: Rejected due to risk of in-flight transaction corruption and unclosed sockets.
+- **Impact:** All platform services and server entrypoints hook into `RuntimeLifecycle`.
+
+---
+
+### ADR-020: Topological Dependency Resolution and Cycle Detection in Lightweight ServiceContainer {#adr-020}
+- **Status:** ACCEPTED
+- **Decision:** Provide a lightweight `ServiceContainer` in `@erp/core/runtime/container.ts` with explicit registration, declared dependencies, and topological sort initialization.
+- **Reason:** Eliminates hidden global mutable service state, prevents service locator abuse, and guarantees deterministic startup and reverse shutdown order. Detects circular dependencies (`CircularDependencyError`) and missing dependencies (`MissingDependencyError`) prior to initialization.
+- **Alternatives Considered:** Adopting a heavyweight DI framework (e.g. Inversify, NestJS container): Rejected to avoid reflection/decorator bloat and maintain a minimal, ultra-fast runtime core.
+- **Impact:** Modular platform services declare dependencies explicitly without magic.
+
+---
+
+### ADR-021: Non-Secret vs Secret Configuration Partitioning with Zero-Leakage Error Handling {#adr-021}
+- **Status:** ACCEPTED
+- **Decision:** Partition application configuration into non-secret runtime parameters and sensitive secrets (`secrets` object), accompanied by a `toSafeConfig()` method.
+- **Reason:** Enforces zero secret leakage across logs, error responses, telemetry, and health probes. Validates connection URLs and required environment parameters, throwing sanitized `ConfigValidationError` that identifies the problematic key without exposing the secret or user credentials.
+- **Alternatives Considered:** Flat configuration objects: Rejected due to accidental serialization risks in logs or health endpoints.
+- **Impact:** Application configuration is strictly typed and safe by design.
+
+---
+
+### ADR-022: Multi-Probe Health Architecture (/health/live, /health/ready, /health/startup) {#adr-022}
+- **Status:** ACCEPTED
+- **Decision:** Implement standardized HTTP health endpoints: `/health/live` (process vitality), `/health/ready` (operational capacity with component check registry), and `/health/startup` (bootstrap state).
+- **Reason:** Complies with modern enterprise orchestration standards (Kubernetes, GCP Cloud Run, AWS ECS). Decouples basic process liveness from external dependency readiness to prevent cascading pod restart storms during transient database blips.
+- **Alternatives Considered:** Single `/health` endpoint: Rejected because restart probes would prematurely kill healthy application pods during temporary downstream dependency latency.
+- **Impact:** Orchestration platforms consume standardized 200/503 health signals.

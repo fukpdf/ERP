@@ -13,10 +13,14 @@ const testFiles = [
   'packages/core/tests/config.test.ts',
   'packages/core/tests/money.test.ts',
   'packages/core/tests/runtime.test.ts',
+  'packages/core/tests/container.test.ts',
+  'packages/core/tests/health.test.ts',
+  'packages/core/tests/http.test.ts',
+  'packages/core/tests/metrics.test.ts',
   'packages/contracts/tests/events.test.ts',
 ];
 
-console.log('🧪 Executing Phase 1 Foundation Test Suites...\n');
+console.log('🧪 Executing Phase 1 & 2 Platform Foundation Test Suites...\n');
 
 const child = spawn(
   process.execPath,
@@ -29,7 +33,7 @@ const child = spawn(
 
 child.on('exit', (code) => {
   if (code === 0) {
-    console.log('\n✅ All Phase 1 foundation test suites PASSED with 100% assertions satisfied.');
+    console.log('\n✅ All test suites PASSED with 100% assertions satisfied.');
     process.exit(0);
   } else {
     console.error(`\n❌ Test execution failed with exit code ${code}.`);

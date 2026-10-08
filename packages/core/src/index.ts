@@ -5,3 +5,6 @@ export * from './logging/index.js';
 export * from './config/index.js';
 export * from './math/index.js';
 export * from './runtime/index.js';
+export * from './health/index.js';
+export * from './http/index.js';
+export * from './observability/index.js';

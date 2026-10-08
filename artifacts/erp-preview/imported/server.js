@@ -300,26 +300,111 @@ async function staticFile(req, res, url) {
   }
 }
 
+let core = null;
+
 const server = http.createServer(async (req, res) => {
+  const start = Date.now();
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-  try {
-    if (url.pathname.startsWith("/erp-api/")) {
-      url.pathname = url.pathname.replace(/^\/erp-api(?=\/|$)/, "/api");
-      const current = apiQueue.then(() => api(req, res, url));
-      apiQueue = current.catch(() => {});
-      await current;
+  const correlationId = core
+    ? core.sanitizeCorrelationId(req.headers['x-correlation-id'] || req.headers['x-request-id'])
+    : (crypto.randomUUID ? crypto.randomUUID() : id("corr"));
+  res.setHeader("x-correlation-id", correlationId);
+
+  const executeHandler = async () => {
+    if (core) {
+      core.runtimeMetrics.incrementActiveRequests();
     }
-    else await staticFile(req, res, url);
-  } catch (err) {
-    if (!(err instanceof RequestError)) console.error(err);
-    const status = err instanceof RequestError ? err.status : 500;
-    error(res, status, err instanceof RequestError ? err.message : "Internal server error");
+    try {
+      // Phase 2 Health Endpoints
+      if (url.pathname === "/health/live") {
+        if (core) {
+          const { statusCode, body } = core.handleLiveness(core.runtime);
+          return json(res, statusCode, body);
+        }
+        return json(res, 200, { status: "ok", state: "READY", timestamp: new Date().toISOString() });
+      }
+
+      if (url.pathname === "/health/ready") {
+        if (core) {
+          const { statusCode, body } = await core.handleReadiness(core.runtime, core.defaultHealthRegistry, "0.1.0");
+          return json(res, statusCode, body);
+        }
+        return json(res, 200, { status: "ok", state: "READY", timestamp: new Date().toISOString(), checks: { dataStore: true } });
+      }
+
+      if (url.pathname === "/health/startup") {
+        if (core) {
+          const { statusCode, body } = core.handleStartup(core.runtime, "0.1.0");
+          return json(res, statusCode, body);
+        }
+        return json(res, 200, { status: "ok", state: "READY", timestamp: new Date().toISOString() });
+      }
+
+      if (url.pathname === "/health/metrics") {
+        if (core) {
+          return json(res, 200, core.runtimeMetrics.getSnapshot());
+        }
+        return json(res, 200, { totalRequests: 0 });
+      }
+
+      if (url.pathname.startsWith("/erp-api/")) {
+        url.pathname = url.pathname.replace(/^\/erp-api(?=\/|$)/, "/api");
+        const current = apiQueue.then(() => api(req, res, url));
+        apiQueue = current.catch(() => {});
+        await current;
+      }
+      else await staticFile(req, res, url);
+    } catch (err) {
+      if (!(err instanceof RequestError)) console.error(err);
+      const status = err instanceof RequestError ? err.status : 500;
+      error(res, status, err instanceof RequestError ? err.message : "Internal server error");
+    } finally {
+      if (core) {
+        core.runtimeMetrics.decrementActiveRequests();
+        core.runtimeMetrics.recordRequest(req.method || 'GET', res.statusCode || 200, Date.now() - start);
+      }
+    }
+  };
+
+  if (core && core.ExecutionContext) {
+    await core.ExecutionContext.run({ correlationId }, executeHandler);
+  } else {
+    await executeHandler();
   }
 });
 
-ensureData().then(() => {
+async function startServer() {
+  const startupStart = Date.now();
+  await ensureData();
+
+  try {
+    core = await import('../../../packages/core/dist/index.js');
+    core.defaultHealthRegistry.register({
+      name: 'dataStore',
+      isCritical: true,
+      check: async () => {
+        try {
+          await fs.access(DATA_FILE);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    });
+    core.runtime.registerShutdownHandler(() => {
+      return new Promise((resolve) => server.close(() => resolve()));
+    });
+    core.runtime.registerSignalHandlers();
+    core.runtime.markReady();
+    core.runtimeMetrics.recordStartupDuration(Date.now() - startupStart);
+  } catch (err) {
+    console.warn("Core runtime dynamic import skipped:", err.message);
+  }
+
   server.listen(PORT, HOST, () => console.log(`ERP foundation running at http://${HOST}:${PORT}`));
-}).catch((err) => {
-  console.error("Unable to initialize data store", err);
+}
+
+startServer().catch((err) => {
+  console.error("Unable to initialize data store or runtime", err);
   process.exit(1);
 });

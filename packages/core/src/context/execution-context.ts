@@ -15,6 +15,8 @@ export interface ExecutionContextData {
   readonly ipAddress?: string;
 }
 
+export type RequestContext = ExecutionContextData;
+
 export class ExecutionContext {
   private static readonly storage = new AsyncLocalStorage<ExecutionContextData>();
 
