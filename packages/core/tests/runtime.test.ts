@@ -176,24 +176,101 @@ describe('RuntimeLifecycle Engine', () => {
     assert.equal(termLifecycle.getState(), 'TERMINATED');
   });
 
-  // Test E — Shutdown timeout handling
+  // Test E — Shutdown timeout handling & late cleanup isolation (DEF-015)
   it('resolves shutdown to TERMINATED even when shutdown handlers exceed timeout', async () => {
     const lifecycle = new RuntimeLifecycle();
     lifecycle.markReady();
 
+    let lateHandlerCompleted = false;
+    let receivedSignal: AbortSignal | undefined;
+
     // Register a handler that delays longer than the shutdown timeout
-    lifecycle.registerShutdownHandler(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    lifecycle.registerShutdownHandler(async (signal) => {
+      receivedSignal = signal;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      lateHandlerCompleted = true;
     });
 
-    // Run shutdown with short timeout of 50ms
-    await lifecycle.shutdown(50);
+    // Run shutdown with short timeout of 30ms
+    await lifecycle.shutdown(30);
 
     assert.equal(lifecycle.getState(), 'TERMINATED');
     assert.equal(lifecycle.isLive(), false);
+    assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(lifecycle.isCleanupComplete(), false);
+    assert.ok(receivedSignal?.aborted);
+
+    // Wait for late handler to complete in background
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    assert.equal(lateHandlerCompleted, true);
+    assert.equal(lifecycle.isCleanupComplete(), true);
+    assert.equal(lifecycle.getState(), 'TERMINATED'); // State remains strictly TERMINATED
 
     const metrics = runtimeMetrics.getSnapshot();
     assert.ok(typeof metrics.shutdownDurationMs === 'number');
-    assert.ok(metrics.shutdownDurationMs >= 40);
+    assert.ok(metrics.shutdownTimeouts >= 1);
+  });
+
+  it('captures late cleanup errors after timeout without mutating TERMINATED state (DEF-015)', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+
+    const lateError = new Error('Late database socket close failed');
+
+    lifecycle.registerShutdownHandler(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      throw lateError;
+    });
+
+    await lifecycle.shutdown(20);
+
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(lifecycle.hasTimedOut(), true);
+
+    // Wait for late failing handler to finish
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    assert.equal(lifecycle.getState(), 'TERMINATED'); // State remains strictly TERMINATED
+    assert.equal(lifecycle.getLateErrors().length, 1);
+    assert.equal(lifecycle.getLateErrors()[0], lateError);
+  });
+
+  it('shares the exact same Promise across concurrent shutdown calls (DEF-015)', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+
+    let executionCount = 0;
+    lifecycle.registerShutdownHandler(async () => {
+      executionCount++;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Fire 3 concurrent shutdown calls
+    const p1 = lifecycle.shutdown();
+    const p2 = lifecycle.shutdown();
+    const p3 = lifecycle.shutdown();
+
+    await Promise.all([p1, p2, p3]);
+
+    assert.equal(executionCount, 1);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+  });
+
+  it('safely handles repeated shutdown calls after timeout has occurred (DEF-015)', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+
+    lifecycle.registerShutdownHandler(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+
+    await lifecycle.shutdown(20);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(lifecycle.hasTimedOut(), true);
+
+    // Repeated call after state is TERMINATED
+    await lifecycle.shutdown();
+    assert.equal(lifecycle.getState(), 'TERMINATED');
   });
 });

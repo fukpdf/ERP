@@ -18,6 +18,7 @@
 | **DEF-012** | **High** | *Architecture* | ServiceContainer was implemented but not integrated into application runtime bootstrap | `packages/core/src/runtime/lifecycle.ts`, `server.js` | **RESOLVED** |
 | **DEF-013** | **High** | *Runtime / Lifecycle* | Runtime shutdown from FAILED state attempted illegal FAILED -> TERMINATING transition | `packages/core/src/runtime/lifecycle.ts` | **RESOLVED** |
 | **DEF-014** | **High** | *Runtime / Lifecycle* | `markFailed()` caught transitions and forcefully assigned `this.state = 'FAILED'`, breaking TERMINATED immutability | `packages/core/src/runtime/lifecycle.ts` | **RESOLVED** |
+| **DEF-015** | **High** | *Runtime / Lifecycle* | Shutdown timeout race condition allowed background cleanup to run silently without metrics or explicit cleanup tracking | `packages/core/src/runtime/lifecycle.ts`, `packages/core/src/observability/metrics.ts` | **RESOLVED** |
 
 ---
 
@@ -83,5 +84,17 @@
 - **Root Cause:** In `RuntimeLifecycle.markFailed()`, a `try/catch` block caught illegal transition errors and forcefully executed `this.state = 'FAILED'`. This bypassed state machine validation and broke the guarantee that `TERMINATED` is a terminal, immutable state (allowing an already terminated runtime to be mutated to `FAILED`).
 - **Affected Files:** `packages/core/src/runtime/lifecycle.ts`, `packages/core/tests/runtime.test.ts`.
 - **Resolution / Fix:** Removed direct assignment `this.state = 'FAILED'`. `markFailed()` now executes `this.transitionTo('FAILED')`, strictly validating transitions. All transitions from `TERMINATED` (`TERMINATED -> READY`, `TERMINATED -> FAILED`, `TERMINATED -> DRAINING`, `TERMINATED -> TERMINATING`) are strictly rejected with `IllegalStateTransitionError`. `TERMINATED` is guaranteed to be immutable.
+- **Status:** RESOLVED
+
+### DEF-015: Shutdown Timeout & Lifecycle Consistency
+- **Severity:** High
+- **Root Cause:** When `shutdown()` timed out via `Promise.race([shutdownAction(), timeoutPromise])`, the timeout resolved first, setting state to `TERMINATED` while background cleanup tasks continued running without observable tracking, abort signals, or timeout metric counters.
+- **Affected Files:** `packages/core/src/runtime/lifecycle.ts`, `packages/core/src/observability/metrics.ts`, `packages/core/tests/runtime.test.ts`.
+- **Resolution / Fix:** Implemented a deterministic shutdown contract:
+  1. `hasTimedOut()`, `isCleanupComplete()`, and `getLateErrors()` inspectable state fields added.
+  2. AbortSignal passed to all shutdown handlers on timeout.
+  3. Timeout behavior explicitly observable via `runtimeMetrics.recordShutdownTimeout()` and `metrics.shutdownTimeouts`.
+  4. Late cleanup completion/failure isolated without mutating `TERMINATED` state or throwing unhandled errors.
+  5. Concurrent and repeated shutdown calls return the same shared promise idempotently.
 - **Status:** RESOLVED
 

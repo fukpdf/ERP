@@ -68,7 +68,7 @@ In strict accordance with Phase 2 scope boundaries (zero business-domain ERP mod
 | **Real Linting** | `npm run lint` (`oxlint --deny-warnings`) | 51 files inspected, 96 rules, 0 errors, 0 warnings (15ms) | Executed AST linter with zero warnings | **PASS** |
 | **Real Compilation**| `npm run build` (`tsc --build`) | All packages cleanly compiled to `dist/` | Declarations, maps, and JS emitted without diagnostics | **PASS** |
 | **Strict Typecheck**| `npm run typecheck` (`tsc --build`) | 0 type errors under strict mode | Full composite project reference compilation clean | **PASS** |
-| **Complete Tests** | `npm test` (`node scripts/run-tests.mjs`) | 40/40 tests passed across 13 suites (~3.54s) | 100% assertions verified; zero fake tests | **PASS** |
+| **Complete Tests** | `npm test` (`node scripts/run-tests.mjs`) | 51/51 tests passed across 14 suites (~9.1s) | 100% assertions verified; zero fake tests | **PASS** |
 | **Boundary & Cycle**| `node scripts/check-boundaries.mjs` | 48 files, 90 edges, 0 cycles, 0 boundary violations | AST-based graph traversal verified downward rules | **PASS** |
 | **Config Failure** | `PORT=99999 node server.js` | Process aborts with `ConfigValidationError`, exit code 1 | Real failure output captured | **PASS** |
 | **Secret Failure** | `NODE_ENV=production node server.js` | Process aborts due to missing `JWT_SECRET`, exit code 1 | Real failure output captured | **PASS** |
@@ -109,10 +109,11 @@ In compliance with Phase 2 scope boundaries, the following were intentionally no
 4. **DEF-012 (HIGH — RESOLVED):** `ServiceContainer` was implemented in isolation without runtime lifecycle integration. Remediated by attaching the container to `RuntimeLifecycle`, registering `dataStore` and `httpServer` with explicit dependency edges, starting them via `container.startAll()`, and stopping them via `container.stopAll()` during graceful shutdown.
 5. **DEF-013 (HIGH — RESOLVED):** Runtime shutdown from `FAILED` state attempted illegal `FAILED -> TERMINATING` transition. Remediated by updating `shutdown()` semantics to execute safe cleanup without transitioning through `DRAINING` or `TERMINATING`, deterministically transitioning `FAILED -> TERMINATED`, and preserving the failure reason.
 6. **DEF-014 (HIGH — RESOLVED):** `markFailed()` caught transition errors and forcefully assigned `this.state = 'FAILED'`, breaking the terminal-state invariant of `TERMINATED`. Remediated by removing direct mutation and enforcing strict transition checks so `TERMINATED` is permanently immutable.
+7. **DEF-015 (HIGH — RESOLVED):** Shutdown timeout race condition allowed background cleanup tasks to execute without tracking, abort signals, or observable metrics. Remediated by creating inspectable state flags (`hasTimedOut()`, `isCleanupComplete()`, `getLateErrors()`), `metrics.shutdownTimeouts` metric counter, propagating `AbortSignal`, isolating late cleanup failures, and ensuring idempotent shared promises.
 
 ### Earlier Code Quality Deficiencies (Remediated)
-7. **DEF-007 (Medium — RESOLVED):** Unused `logger` import and redundant regex escape in `packages/core/src/http/context-middleware.ts`. Fixed.
-8. **DEF-008 (Low — RESOLVED):** Unused `InternalError` import in `packages/core/tests/http.test.ts`. Fixed.
+8. **DEF-007 (Medium — RESOLVED):** Unused `logger` import and redundant regex escape in `packages/core/src/http/context-middleware.ts`. Fixed.
+9. **DEF-008 (Low — RESOLVED):** Unused `InternalError` import in `packages/core/tests/http.test.ts`. Fixed.
 
 ---
 
@@ -134,16 +135,17 @@ Seven architectural decisions have been formalized in `docs/DECISIONS.md`:
 ```
 ================================================================================
 PHASE 2 STATUS:             CERTIFIED COMPLETE
-DEFICIENCIES RESOLVED:      DEF-009, DEF-010, DEF-011, DEF-012, DEF-013, DEF-014 (100% fixed)
+DEFICIENCIES RESOLVED:      DEF-009, DEF-010, DEF-011, DEF-012, DEF-013, DEF-014, DEF-015 (100% fixed)
 FAILED SHUTDOWN:            SAFE & DETERMINISTIC (FAILED -> TERMINATED; metrics recorded)
 TERMINATED IMMUTABILITY:    ENFORCED (Mutations rejected with IllegalStateTransitionError)
+SHUTDOWN TIMEOUT CONTRACT:  HARDENED (AbortSignal, metrics, inspectable state, late isolation)
 FAILURE REASON PRESERVED:   CONFIRMED (getFailureReason() returns original error)
-SHUTDOWN IDEMPOTENCY:       VERIFIED (Multiple calls are safe no-ops)
+SHUTDOWN IDEMPOTENCY:       VERIFIED (Multiple calls are safe no-ops / shared promise)
 MANDATORY RUNTIME STARTUP:  ENFORCED (Zero fake fallbacks; failures exit 1)
 TYPED CONFIGURATION:        WIRED (Sole source of runtime settings)
 DRAINING INGRESS SHUTOFF:   ENFORCED (HTTP 503 on new work; in-flight drains)
 SERVICE CONTAINER:          INTEGRATED (Topological startAll/stopAll in runtime)
-TEST SUITE:                 40/40 PASSED (100% assertions across 13 suites)
+TEST SUITE:                 51/51 PASSED (100% assertions across 14 suites)
 LINT PASSING:               51 files inspected, 0 warnings, 0 errors
 BUILD & TYPECHECK:          PASS (tsc --build clean)
 ARCHITECTURAL BOUNDARIES:   PASS (0 cycles, 0 boundary leaks)

@@ -19,7 +19,10 @@
     "check:boundaries": "node scripts/check-boundaries.mjs"
   },
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.3"
+    "@electric-sql/pglite": "^0.5.8",
+    "@replit/connectors-sdk": "^0.4.3",
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

@@ -19,7 +19,7 @@ export interface HealthCheckResult {
   readonly version?: string;
 }
 
-export type ShutdownHandler = () => Promise<void> | void;
+export type ShutdownHandler = (signal?: AbortSignal) => Promise<void> | void;
 export type HealthCheck = () => Promise<boolean> | boolean;
 
 export class IllegalStateTransitionError extends Error {
@@ -38,6 +38,9 @@ export class RuntimeLifecycle {
   private signalRegistered = false;
   private attachedContainer?: ServiceContainer;
   private shutdownPromise?: Promise<void>;
+  private timedOut = false;
+  private cleanupFinished = false;
+  private readonly lateErrors: Error[] = [];
 
   constructor(registerSignals = false) {
     if (registerSignals) {
@@ -51,6 +54,18 @@ export class RuntimeLifecycle {
 
   getContainer(): ServiceContainer | undefined {
     return this.attachedContainer;
+  }
+
+  hasTimedOut(): boolean {
+    return this.timedOut;
+  }
+
+  isCleanupComplete(): boolean {
+    return this.cleanupFinished;
+  }
+
+  getLateErrors(): Error[] {
+    return [...this.lateErrors];
   }
 
   private transitionTo(newState: RuntimeState): void {
@@ -197,6 +212,7 @@ export class RuntimeLifecycle {
     }
 
     const shutdownStart = Date.now();
+    const abortController = new AbortController();
 
     this.shutdownPromise = (async () => {
       // Step 1: Ingress shutoff (DRAINING) - only valid when transitioning from READY
@@ -213,16 +229,28 @@ export class RuntimeLifecycle {
 
       let timer: NodeJS.Timeout | undefined;
       const timeoutPromise = new Promise<void>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Graceful shutdown timeout exceeded')), timeoutMs);
+        timer = setTimeout(() => {
+          this.timedOut = true;
+          runtimeMetrics.recordShutdownTimeout();
+          abortController.abort(new Error('Graceful shutdown timeout exceeded'));
+          reject(new Error('Graceful shutdown timeout exceeded'));
+        }, timeoutMs);
       });
 
       const shutdownAction = async (): Promise<void> => {
+        const signal = abortController.signal;
         // Execute registered shutdown handlers in reverse order (LIFO)
         for (const handler of [...this.shutdownHandlers].reverse()) {
           try {
-            await handler();
+            await handler(signal);
           } catch (err) {
-            logger.error('Error in shutdown handler:', err as Error);
+            const error = err instanceof Error ? err : new Error(String(err));
+            if (this.timedOut) {
+              this.lateErrors.push(error);
+              logger.error('Error in late shutdown handler (after timeout):', error);
+            } else {
+              logger.error('Error in shutdown handler:', error);
+            }
           }
         }
 
@@ -231,8 +259,19 @@ export class RuntimeLifecycle {
           try {
             await this.attachedContainer.stopAll();
           } catch (err) {
-            logger.error('Error stopping attached service container:', err as Error);
+            const error = err instanceof Error ? err : new Error(String(err));
+            if (this.timedOut) {
+              this.lateErrors.push(error);
+              logger.error('Error stopping attached service container (after timeout):', error);
+            } else {
+              logger.error('Error stopping attached service container:', error);
+            }
           }
+        }
+
+        this.cleanupFinished = true;
+        if (this.timedOut) {
+          logger.info('Late shutdown cleanup completed after timeout.');
         }
       };
 

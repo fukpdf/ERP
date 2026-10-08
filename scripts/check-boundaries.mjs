@@ -193,8 +193,12 @@ console.log('🏛️ Universal ERP Architectural Boundary & Dependency Graph Val
 console.log('   Parser: TypeScript Compiler API (Full AST Analysis)');
 console.log('   Engine: Directed Graph Traversal & Cycle Detection\n');
 
-const allSourceFiles = findSourceFiles(PACKAGES_DIR);
-console.log(`📂 Discovered ${allSourceFiles.length} source files across packages.`);
+const LIB_DIR = path.join(ROOT_DIR, 'lib');
+const allSourceFiles = [
+  ...findSourceFiles(PACKAGES_DIR),
+  ...findSourceFiles(LIB_DIR),
+];
+console.log(`📂 Discovered ${allSourceFiles.length} source files across packages and libraries.`);
 
 const fileGraph = new Map();
 const packageGraph = new Map();

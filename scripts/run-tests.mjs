@@ -19,9 +19,10 @@ const testFiles = [
   'packages/core/tests/http.test.ts',
   'packages/core/tests/metrics.test.ts',
   'packages/contracts/tests/events.test.ts',
+  'lib/db/tests/db.test.ts',
 ];
 
-console.log('🧪 Executing Phase 1 & 2 Platform Foundation Test Suites...\n');
+console.log('🧪 Executing Phase 1, 2 & 3 Platform & Database Foundation Test Suites...\n');
 
 const child = spawn(
   process.execPath,

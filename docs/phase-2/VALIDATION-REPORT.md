@@ -14,7 +14,7 @@
 | **1** | Real AST-Based Linting | `npm run lint` (`oxlint --deny-warnings packages scripts`) | 51 files inspected, 96 rules, 0 errors, 0 warnings (15ms) | **PASS** |
 | **2** | Real Multi-Project Build | `npm run build` (`tsc --build`) | All project references cleanly compiled and emitted to `dist/` | **PASS** |
 | **3** | Strict TypeScript Typecheck | `npm run typecheck` (`tsc --build`) | 0 type errors across all packages | **PASS** |
-| **4** | Real Test Suite Execution | `npm test` (`node scripts/run-tests.mjs`) | 40 tests, 13 suites passed in ~3.5s, 0 failed, 0 skipped | **PASS** |
+| **4** | Real Test Suite Execution | `npm test` (`node scripts/run-tests.mjs`) | 51 tests, 14 suites passed in ~9.1s, 0 failed, 0 skipped | **PASS** |
 | **5** | AST Boundary & Graph Cycle Check | `node scripts/check-boundaries.mjs` | 48 source files, 90 import edges, 0 cycles, 0 boundary leaks | **PASS** |
 | **6** | Configuration Failure Verification | `PORT=99999 node artifacts/erp-preview/imported/server.js` | Startup aborted with `ConfigValidationError`, exit code 1 | **PASS** |
 | **7** | Production Secret Failure Verification | `NODE_ENV=production node artifacts/erp-preview/imported/server.js` | Startup aborted with missing `JWT_SECRET`, exit code 1 | **PASS** |
@@ -211,8 +211,8 @@
 
 ---
 
-### Check 13: Lifecycle Failure Path & Terminal Invariant Verification (DEF-013 & DEF-014)
-- **CHECK:** Deterministic Transitions across all Entry States and Terminal State Immutability
+### Check 13: Lifecycle Failure Path & Terminal Invariant Verification (DEF-013, DEF-014, DEF-015)
+- **CHECK:** Deterministic Transitions across all Entry States, Terminal Immutability, and Hardened Timeout Isolation
 - **TEST FILE:** `packages/core/tests/runtime.test.ts`
 - **INDIVIDUAL VERIFIED CASES:**
   1. **Test A — FAILED Shutdown:** Runtime marked `FAILED` cleanly transitions `FAILED -> TERMINATED` without attempting `FAILED -> TERMINATING`. Shutdown resolves, `getFailureReason()` preserves original error, and `shutdownDurationMs` metric is recorded.
@@ -224,6 +224,6 @@
      - `DRAINING -> TERMINATING -> TERMINATED`
      - `FAILED -> TERMINATED`
      - `TERMINATED -> no-op (TERMINATED)`
-  5. **Test E — Shutdown Timeout Handling:** A hanging handler exceeding the timeout limit triggers timeout rejection, but the finally block clears timers, records `shutdownDurationMs`, and resolves to `TERMINATED`.
+  5. **Test E — Shutdown Timeout Handling (DEF-015):** A hanging handler exceeding the timeout limit triggers timeout rejection. `hasTimedOut()` becomes `true`, `AbortSignal` is signaled, metrics log `shutdownTimeouts`, late completion/failures occur safely in background without mutating `TERMINATED` state or unhandled errors, and repeated calls after timeout remain idempotent.
 - **STATUS:** **PASS**
 

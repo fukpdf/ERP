@@ -15,6 +15,7 @@ export interface RuntimeMetricsSnapshot {
   };
   readonly startupDurationMs?: number;
   readonly shutdownDurationMs?: number;
+  readonly shutdownTimeouts: number;
 }
 
 export class RuntimeMetrics implements IMetricsRecorder {
@@ -25,6 +26,7 @@ export class RuntimeMetrics implements IMetricsRecorder {
   private readonly durations: number[] = [];
   private startupDuration?: number;
   private shutdownDuration?: number;
+  private shutdownTimeouts = 0;
 
   incrementCounter(name: string, value = 1, _tags?: MetricTags): void {
     if (name === 'http_requests_total') {
@@ -75,6 +77,10 @@ export class RuntimeMetrics implements IMetricsRecorder {
     this.shutdownDuration = ms;
   }
 
+  recordShutdownTimeout(): void {
+    this.shutdownTimeouts++;
+  }
+
   getSnapshot(): RuntimeMetricsSnapshot {
     const sorted = [...this.durations].sort((a, b) => a - b);
     const count = sorted.length;
@@ -110,6 +116,7 @@ export class RuntimeMetrics implements IMetricsRecorder {
       },
       startupDurationMs: this.startupDuration,
       shutdownDurationMs: this.shutdownDuration,
+      shutdownTimeouts: this.shutdownTimeouts,
     };
   }
 
@@ -121,6 +128,7 @@ export class RuntimeMetrics implements IMetricsRecorder {
     this.durations.length = 0;
     this.startupDuration = undefined;
     this.shutdownDuration = undefined;
+    this.shutdownTimeouts = 0;
   }
 }
 

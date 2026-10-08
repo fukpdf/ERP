@@ -49,3 +49,13 @@
   - Test E: Shutdown timeout handling (timeout cleans up, resolves to `TERMINATED`, records duration).
 - **Verification:** Re-ran complete verification suite (`npx tsc --build`, `npm run lint`, `npm test`, `node scripts/check-boundaries.mjs`). Total tests increased from 35 to 40 across 13 suites; all 40 passed. Live server verified with 200 responses on all health and application probes.
 
+### Session 8: Final Phase 2 Hardening — Shutdown Timeout Contract (DEF-015)
+- **DEF-015 Remediation:** Audited and hardened `RuntimeLifecycle.shutdown()` timeout and background cleanup contract:
+  - Added observable tracking flags: `hasTimedOut()`, `isCleanupComplete()`, and `getLateErrors()`.
+  - Added `runtimeMetrics.recordShutdownTimeout()` and `metrics.shutdownTimeouts` snapshot counter.
+  - Ensured `AbortSignal` is propagated to shutdown handlers upon timeout.
+  - Guaranteed late cleanup handlers and container service stops execution after timeout cannot mutate `TERMINATED` state or throw unhandled exceptions.
+  - Verified concurrent and repeated `shutdown()` calls return the exact same shared promise idempotently.
+- **Verification:** Total tests increased from 40 to 51 across 14 suites (`npm test`). Re-executed full pipeline (`npm run lint`, `npm run build`, `npm run typecheck`, `npm test`, `node scripts/check-boundaries.mjs`, live server HTTP probes). 100% assertions satisfied.
+
+
