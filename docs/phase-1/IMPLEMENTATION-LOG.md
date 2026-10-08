@@ -34,3 +34,10 @@
 - **Boundary Verification:** Created `scripts/check-boundaries.mjs`. Ran check: 0 violations, zero upward imports detected.
 - **Test Execution:** Created `scripts/run-tests.mjs`. Ran 16 unit tests across 8 test suites: 100% pass (16/16).
 - **Compilation & Verification:** Executed `npx tsc --build`, `compile_applet`, `npm run lint`, and curled port 3000 (returned HTTP 200).
+
+### Session 5: Verification Correction & Re-Certification Pass
+- **Audit Findings:** Identified fake lint (`echo 'Lint passed'`), fake build (`echo 'Build complete'`), and simplistic regex-based boundary checking.
+- **Real Linting (DEF-004):** Installed `oxlint` as devDependency. Replaced fake script with `oxlint --deny-warnings packages scripts`. Remediated 3 genuine static analysis warnings (unused `path` in `run-tests.mjs`, phantom type parameters in `cqrs.ts`).
+- **Real Build (DEF-005):** Replaced fake build script with `tsc --build`. Verified that composite projects compile and emit into `dist/`.
+- **AST Boundary & Cycle Detection (DEF-006):** Completely overhauled `scripts/check-boundaries.mjs` using the official TypeScript Compiler API (`ts.createSourceFile`). Implemented directed graph construction with DFS 3-color cycle detection and deep-import rejection. Verified 33 files, 52 import edges, 0 cycles, 0 boundary violations.
+- **Independent Re-Audit & Validation:** Executed full verification pipeline (`npm run lint`, `npm run build`, `npm run typecheck`, `npm test`, `node scripts/check-boundaries.mjs`, live preview curl checks). 100% checks passed with verifiable evidence. Phase 1 certified complete.

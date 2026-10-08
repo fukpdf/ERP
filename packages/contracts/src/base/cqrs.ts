@@ -1,11 +1,11 @@
 import type { Result } from '@erp/core';
 
-export interface ICommand<TResult = void> {
+export interface ICommand<_TResult = void> {
   readonly commandId?: string;
   readonly timestamp?: string;
 }
 
-export interface IQuery<TResult = unknown> {
+export interface IQuery<_TResult = unknown> {
   readonly queryId?: string;
 }
 

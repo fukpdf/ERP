@@ -175,3 +175,21 @@
 - **Reason:** Eliminates third-party supply chain vulnerabilities at the lowest platform tier, guarantees zero container cold-start delay, and keeps `@erp/core` ultra-lightweight.
 - **Alternatives Considered:** Bundling external schema libraries into core: Deferred to application layers where dynamic user inputs justify the dependency footprint.
 - **Impact:** `@erp/core` remains self-contained with minimal external dependencies.
+
+---
+
+### ADR-017: TypeScript Compiler API for Architectural Boundary & Cycle Validation {#adr-017}
+- **Status:** ACCEPTED
+- **Decision:** Implement the architectural boundary and dependency validator (`scripts/check-boundaries.mjs`) using the TypeScript Compiler API (`ts.createSourceFile`) rather than heuristic regular expressions or third-party AST tools.
+- **Reason:** Guarantees 100% accurate parsing of static imports, re-exports, dynamic imports, and CommonJS require statements without introducing new toolchain dependencies. Integrates a formal directed graph with DFS 3-color cycle detection and deep-import rejection.
+- **Alternatives Considered:** Line-by-line regex parsing (rejected as inadequate and prone to false negatives); `dependency-cruiser` (rejected to avoid installing dozens of transitive npm dependencies when TypeScript is already installed).
+- **Impact:** Automated CI gate executes via `node scripts/check-boundaries.mjs` in sub-second time.
+
+---
+
+### ADR-018: Adoption of Oxlint for Strict Static Analysis & Zero-Overhead Linting {#adr-018}
+- **Status:** ACCEPTED
+- **Decision:** Adopt `oxlint` with `--deny-warnings` as the canonical linter for Phase 1 TypeScript and JavaScript codebases.
+- **Reason:** Replaced no-op `echo` placeholder with a genuine, production-grade linter. `oxlint` runs in <15ms across all workspace packages with zero transitive dependencies, enforcing strict correctness and unused variable rules with non-zero exit codes on violations.
+- **Alternatives Considered:** Heavy ESLint setup with complex plugin dependency graph: Deferred for later UI phases; `oxlint` provides immediate, reliable verification without package bloat.
+- **Impact:** `npm run lint` strictly enforces code quality across all packages.

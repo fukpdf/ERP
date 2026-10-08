@@ -12,8 +12,8 @@
   "scripts": {
     "dev": "node artifacts/erp-preview/imported/server.js",
     "start": "node artifacts/erp-preview/imported/server.js",
-    "build": "echo 'Build complete'",
-    "lint": "echo 'Lint passed'",
+    "build": "tsc --build",
+    "lint": "oxlint --deny-warnings packages scripts",
     "typecheck": "tsc --build",
     "test": "node scripts/run-tests.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs"
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
+    "oxlint": "^1.87.0",
     "prettier": "^3.9.6",
     "typescript": "~5.9.3"
   },
