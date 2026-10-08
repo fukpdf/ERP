@@ -3,20 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "description": "Incremental ERP foundation for Replit",
-  "packageManager": "pnpm@10.17.1",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "security:scan": "pnpm audit"
+    "security:scan": "npm audit"
   },
-  "pnpm": {
-    "overrides": {
-      "deepmerge-ts": "8.0.2",
-      "mysql2": "3.23.1"
-    }
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.23.1"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

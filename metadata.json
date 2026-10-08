@@ -1,0 +1,7 @@
+{
+  "name": "Northstar ERP",
+  "description": "Enterprise Resource Planning workspace with operations dashboard, inventory management, customer directory, and sales orders.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
