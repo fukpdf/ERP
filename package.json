@@ -4,6 +4,7 @@
   "license": "MIT",
   "private": true,
   "workspaces": [
+    "packages/*",
     "artifacts/*",
     "lib/*",
     "scripts"
@@ -13,12 +14,15 @@
     "start": "node artifacts/erp-preview/imported/server.js",
     "build": "echo 'Build complete'",
     "lint": "echo 'Lint passed'",
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build",
+    "test": "node scripts/run-tests.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs"
   },
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.3"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
     "prettier": "^3.9.6",
     "typescript": "~5.9.3"
   },

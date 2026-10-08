@@ -148,3 +148,30 @@
   2. *Google Cloud Spanner (PostgreSQL interface):* Virtually unlimited scalability and external consistency, but proprietary cloud engine.
   3. *PostgreSQL Multi-Region Aurora / Citus sharding:* Native PostgreSQL core with sharding extensions.
 - **Resolution Plan:** Architecture review board evaluation scheduled for Phase 17. The Drizzle ORM and repository abstraction ensures application queries remain portable across standard PostgreSQL and distributed SQL engines.
+
+---
+
+### ADR-014: Monorepo Foundation & Workspace Package Topology (@erp/core and @erp/contracts) {#adr-014}
+- **Status:** ACCEPTED
+- **Decision:** Establish `packages/core` and `packages/contracts` as the foundational npm workspace packages for Tier 1 and shared boundary definitions.
+- **Reason:** Enforces downward-only dependency rules and strict interface encapsulation. Avoids creating hundreds of empty placeholder packages while providing immediate compilation and testing scaffolding for future phases.
+- **Alternatives Considered:** Single monolithic package or dozens of micro-packages upfront: Rejected to avoid premature complexity while preventing monolithic coupling.
+- **Impact:** Project references wired in root `tsconfig.json` and workspaces in root `package.json`.
+
+---
+
+### ADR-015: Result Functional Container and Standardized AppError Hierarchy {#adr-015}
+- **Status:** ACCEPTED
+- **Decision:** Adopt `Result<T, E>` for functional error returns across business domain logic and standard `AppError` subclasses with `toSafeResponse()` for machine-readable external payloads.
+- **Reason:** Prevents unhandled exceptions from crashing worker processes, guarantees predictable typed error handling, maps directly to HTTP status codes, and ensures zero leakage of stack traces or sensitive credentials in production.
+- **Alternatives Considered:** Throwing untyped JavaScript `Error` objects: Rejected due to unpredictability and security risk of leaking internal details.
+- **Impact:** All future domain services and controllers will return `Result<T, AppError>` or throw verified `AppError` subclasses.
+
+---
+
+### ADR-016: Zero-Dependency Schema Validation for Core Configuration {#adr-016}
+- **Status:** ACCEPTED
+- **Decision:** Implement typed configuration validation in `@erp/core/config` using native TypeScript validation rather than heavy external libraries for core initialization.
+- **Reason:** Eliminates third-party supply chain vulnerabilities at the lowest platform tier, guarantees zero container cold-start delay, and keeps `@erp/core` ultra-lightweight.
+- **Alternatives Considered:** Bundling external schema libraries into core: Deferred to application layers where dynamic user inputs justify the dependency footprint.
+- **Impact:** `@erp/core` remains self-contained with minimal external dependencies.
