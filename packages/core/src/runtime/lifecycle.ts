@@ -214,39 +214,42 @@ export class RuntimeLifecycle {
     const shutdownStart = Date.now();
     const abortController = new AbortController();
 
-    this.shutdownPromise = (async () => {
-      // Step 1: Ingress shutoff (DRAINING) - only valid when transitioning from READY
+    this.shutdownPromise = new Promise<void>((resolve, reject) => {
+      // Step 1: Ingress shutoff (DRAINING)
       if (this.state === 'READY') {
-        this.transitionTo('DRAINING');
-        logger.info('Runtime entered DRAINING state: operational ingress shut off.');
+        try {
+          this.transitionTo('DRAINING');
+          logger.info('Runtime entered DRAINING state: operational ingress shut off.');
+        } catch (err) {
+          reject(err);
+          return;
+        }
       }
 
-      // Step 2: Termination preparation - skip if already FAILED or TERMINATING
+      // Step 2: Termination preparation
       if (this.state !== 'FAILED' && this.state !== 'TERMINATING') {
-        this.transitionTo('TERMINATING');
-        logger.info('Runtime entering TERMINATING state: executing shutdown handlers and stopping container services...');
+        try {
+          this.transitionTo('TERMINATING');
+          logger.info('Runtime entering TERMINATING state: executing shutdown handlers...');
+        } catch (err) {
+          reject(err);
+          return;
+        }
       }
 
       let timer: NodeJS.Timeout | undefined;
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        timer = setTimeout(() => {
-          this.timedOut = true;
-          runtimeMetrics.recordShutdownTimeout();
-          abortController.abort(new Error('Graceful shutdown timeout exceeded'));
-          reject(new Error('Graceful shutdown timeout exceeded'));
-        }, timeoutMs);
-      });
 
-      const cleanupPromise = (async () => {
+      void (async () => {
         const signal = abortController.signal;
+
         // Execute registered shutdown handlers in reverse order (LIFO)
         for (const handler of [...this.shutdownHandlers].reverse()) {
           try {
             await handler(signal);
           } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));
+            this.lateErrors.push(error);
             if (this.timedOut) {
-              this.lateErrors.push(error);
               logger.error('Error in late shutdown handler (after timeout):', error);
             } else {
               logger.error('Error in shutdown handler:', error);
@@ -260,8 +263,8 @@ export class RuntimeLifecycle {
             await this.attachedContainer.stopAll();
           } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));
+            this.lateErrors.push(error);
             if (this.timedOut) {
-              this.lateErrors.push(error);
               logger.error('Error stopping attached service container (after timeout):', error);
             } else {
               logger.error('Error stopping attached service container:', error);
@@ -270,31 +273,41 @@ export class RuntimeLifecycle {
         }
 
         this.cleanupFinished = true;
-        if (this.timedOut) {
-          logger.info('Late shutdown cleanup completed after timeout.');
-        } else {
-          logger.info('All shutdown handlers and container services completed cleanly.');
+
+        if (timer) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+
+        const duration = Date.now() - shutdownStart;
+        runtimeMetrics.recordShutdownDuration(duration);
+
+        // Transition to TERMINATED only when cleanup is completely finished
+        if (this.state !== 'TERMINATED') {
+          try {
+            this.transitionTo('TERMINATED');
+            logger.info('Runtime entered TERMINATED state.');
+          } catch (err) {
+            logger.error('Failed to transition to TERMINATED:', err instanceof Error ? err : new Error(String(err)));
+          }
+        }
+
+        if (!this.timedOut) {
+          resolve();
         }
       })();
 
-      try {
-        await Promise.race([cleanupPromise, timeoutPromise]);
-      } catch (err) {
-        logger.warn('Shutdown timeout reached; cleanup continuing in background.', { error: String(err) });
-      }
+      // Start timeout timer
+      timer = setTimeout(() => {
+        this.timedOut = true;
+        runtimeMetrics.recordShutdownTimeout();
+        abortController.abort(new Error('Graceful shutdown timeout exceeded'));
+        logger.warn('Shutdown timeout reached; cleanup continuing in background.');
 
-      // Ensure cleanupPromise fully settles before transitioning to TERMINATED
-      try {
-        await cleanupPromise;
-      } catch (err) {
-        logger.error('Cleanup finished with error:', err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        if (timer) clearTimeout(timer);
-        const duration = Date.now() - shutdownStart;
-        runtimeMetrics.recordShutdownDuration(duration);
-        this.transitionTo('TERMINATED');
-      }
-    })();
+        // Resolve the outer promise on timeout so the caller is not blocked
+        resolve();
+      }, timeoutMs);
+    });
 
     return this.shutdownPromise;
   }

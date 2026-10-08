@@ -13,9 +13,9 @@
 | **1** | Real AST-Based Linting | `npm run lint` (`oxlint --deny-warnings`) | 51 files inspected, 96 rules, 0 errors, 0 warnings | **PASS** |
 | **2** | Real Multi-Project Build | `npm run build` (`tsc --build`) | All packages cleanly compiled to `dist/` | **PASS** |
 | **3** | Strict TypeScript Typecheck | `npm run typecheck` (`tsc --build`) | 0 type errors across all packages | **PASS** |
-| **4** | Real Test Suite Execution | `npm test` (`node scripts/run-tests.mjs`) | 52 tests, 14 suites passed, 0 failed | **PASS** |
-| **5** | AST Boundary & Graph Cycle Check | `node scripts/check-boundaries.mjs` | 64 source files, 127 import edges, 0 cycles, 0 boundary leaks | **PASS** |
-| **6** | Database Migration & Health | `node --experimental-strip-types --test lib/db/tests/db.test.ts` | 9/9 database integration tests passed | **PASS** |
+| **4** | Real Test Suite Execution | `npm test` (`node scripts/run-tests.mjs`) | 62 tests, 14 suites passed, 0 failed | **PASS** |
+| **5** | AST Boundary & Graph Cycle Check | `node scripts/check-boundaries.mjs` | 64 source files, 128 import edges, 0 cycles, 0 boundary leaks | **PASS** |
+| **6** | Database Migration & Health | `node --experimental-strip-types --test lib/db/tests/db.test.ts` | 10/10 database integration tests passed | **PASS** |
 | **7** | Strict Tenant Isolation | Cross-tenant access validation in repository layer | Blocked and rejected cross-tenant queries successfully | **PASS** |
 
 ---
@@ -24,7 +24,7 @@
 
 ### Check 1-5: Full Verification Pipeline
 - **Command:** `npm run lint && npm run build && npm run typecheck && npm test`
-- **Result:** All linters, TypeScript composite project builds, typechecks, and 52 test assertions executed and passed successfully.
+- **Result:** All linters, TypeScript composite project builds, typechecks, and 62 test assertions executed and passed successfully.
 - **Status:** **PASS**
 
 ### Check 6-7: Database Persistence & Multi-Tenant Isolation

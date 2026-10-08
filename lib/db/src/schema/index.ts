@@ -10,6 +10,7 @@ import {
   primaryKey,
   uniqueIndex,
   index,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 
 // ============================================================================
@@ -48,6 +49,7 @@ export const organizations = pgTable(
   (table) => ({
     tenantIdx: index("idx_organizations_tenant").on(table.tenantId),
     tenantCodeUq: uniqueIndex("uq_organizations_tenant_code").on(table.tenantId, table.code),
+    idTenantUq: uniqueIndex("uq_organizations_id_tenant").on(table.id, table.tenantId),
   })
 );
 
@@ -61,9 +63,7 @@ export const legalEntities = pgTable(
     tenantId: uuid("tenant_id")
       .notNull()
       .references(() => tenants.id, { onDelete: "restrict" }),
-    organizationId: uuid("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "restrict" }),
+    organizationId: uuid("organization_id").notNull(),
     name: text("name").notNull(),
     taxIdentifier: varchar("tax_identifier", { length: 64 }),
     countryCode: varchar("country_code", { length: 3 }).notNull().default("USA"),
@@ -73,6 +73,10 @@ export const legalEntities = pgTable(
   },
   (table) => ({
     tenantOrgIdx: index("idx_legal_entities_tenant_org").on(table.tenantId, table.organizationId),
+    orgTenantFk: foreignKey({
+      columns: [table.organizationId, table.tenantId],
+      foreignColumns: [organizations.id, organizations.tenantId],
+    }).onDelete("restrict"),
   })
 );
 
@@ -95,6 +99,7 @@ export const users = pgTable(
   (table) => ({
     tenantEmailUq: uniqueIndex("uq_users_tenant_email").on(table.tenantId, table.email),
     tenantIdx: index("idx_users_tenant").on(table.tenantId),
+    idTenantUq: uniqueIndex("uq_users_id_tenant").on(table.id, table.tenantId),
   })
 );
 
@@ -117,6 +122,7 @@ export const roles = pgTable(
   (table) => ({
     tenantNameUq: uniqueIndex("uq_roles_tenant_name").on(table.tenantId, table.name),
     tenantIdx: index("idx_roles_tenant").on(table.tenantId),
+    idTenantUq: uniqueIndex("uq_roles_id_tenant").on(table.id, table.tenantId),
   })
 );
 
@@ -145,9 +151,7 @@ export const permissions = pgTable(
 export const rolePermissions = pgTable(
   "role_permissions",
   {
-    roleId: uuid("role_id")
-      .notNull()
-      .references(() => roles.id, { onDelete: "cascade" }),
+    roleId: uuid("role_id").notNull(),
     permissionId: uuid("permission_id")
       .notNull()
       .references(() => permissions.id, { onDelete: "cascade" }),
@@ -159,6 +163,10 @@ export const rolePermissions = pgTable(
   (table) => ({
     pk: primaryKey({ columns: [table.roleId, table.permissionId] }),
     tenantIdx: index("idx_role_permissions_tenant").on(table.tenantId),
+    roleTenantFk: foreignKey({
+      columns: [table.roleId, table.tenantId],
+      foreignColumns: [roles.id, roles.tenantId],
+    }).onDelete("cascade"),
   })
 );
 
@@ -168,12 +176,8 @@ export const rolePermissions = pgTable(
 export const userRoles = pgTable(
   "user_roles",
   {
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    roleId: uuid("role_id")
-      .notNull()
-      .references(() => roles.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    roleId: uuid("role_id").notNull(),
     tenantId: uuid("tenant_id")
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
@@ -182,6 +186,14 @@ export const userRoles = pgTable(
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.roleId] }),
     tenantIdx: index("idx_user_roles_tenant").on(table.tenantId),
+    userTenantFk: foreignKey({
+      columns: [table.userId, table.tenantId],
+      foreignColumns: [users.id, users.tenantId],
+    }).onDelete("cascade"),
+    roleTenantFk: foreignKey({
+      columns: [table.roleId, table.tenantId],
+      foreignColumns: [roles.id, roles.tenantId],
+    }).onDelete("cascade"),
   })
 );
 

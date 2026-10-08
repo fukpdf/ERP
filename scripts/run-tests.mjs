@@ -1,6 +1,6 @@
 /**
  * Master Enterprise Test Runner
- * Executes all real unit and integration test suites using Node.js native test runner.
+ * Executes all real unit and integration test suites sequentially using Node.js native test runner.
  */
 
 import { spawn } from 'node:child_process';
@@ -22,23 +22,35 @@ const testFiles = [
   'lib/db/tests/db.test.ts',
 ];
 
-console.log('🧪 Executing Phase 1, 2 & 3 Platform & Database Foundation Test Suites...\n');
+console.log('🧪 Executing Phase 1, 2 & 3 Platform & Database Foundation Test Suites sequentially...\n');
 
-const child = spawn(
-  process.execPath,
-  ['--experimental-strip-types', '--test', ...testFiles],
-  {
-    stdio: 'inherit',
-    env: { ...process.env, NODE_ENV: 'test' },
-  },
-);
+async function runAll() {
+  for (const file of testFiles) {
+    console.log(`▶ Running test suite: ${file}`);
+    await new Promise((resolve, reject) => {
+      const child = spawn(
+        process.execPath,
+        ['--experimental-strip-types', '--test', file],
+        {
+          stdio: 'inherit',
+          env: { ...process.env, NODE_ENV: 'test' },
+        },
+      );
 
-child.on('exit', (code) => {
-  if (code === 0) {
-    console.log('\n✅ All test suites PASSED with 100% assertions satisfied.');
-    process.exit(0);
-  } else {
-    console.error(`\n❌ Test execution failed with exit code ${code}.`);
-    process.exit(code ?? 1);
+      child.on('exit', (code) => {
+        if (code === 0) {
+          resolve(true);
+        } else {
+          reject(new Error(`Test suite ${file} failed with exit code ${code}`));
+        }
+      });
+    });
   }
+  console.log('\n✅ All test suites PASSED with 100% assertions satisfied.');
+  process.exit(0);
+}
+
+runAll().catch((err) => {
+  console.error(`\n❌ ${err.message}`);
+  process.exit(1);
 });

@@ -14,6 +14,8 @@ import {
   RolePermissionRepository,
   CurrencyRepository,
   AuditLogRepository,
+  getDb,
+  legalEntities,
 } from "../dist/index.js";
 
 describe("Phase 3 Database & Persistence Platform Foundation", () => {
@@ -40,6 +42,7 @@ describe("Phase 3 Database & Persistence Platform Foundation", () => {
 
     const migrationStatus = await getMigrationStatus();
     assert.equal(migrationStatus.isApplied, true);
+    assert.equal(migrationStatus.status, "applied");
     assert.ok(migrationStatus.tableCount >= 5);
   });
 
@@ -165,6 +168,23 @@ describe("Phase 3 Database & Persistence Platform Foundation", () => {
     await assert.rejects(async () => {
       await runInTenantContext(tenantB.id, async (tx) => {
         return await userRepo.listByTenant(tenantA.id, tx);
+      });
+    });
+  });
+
+  it("enforces database-level cross-tenant relational integrity via composite foreign keys", async () => {
+    const tenantA = await tenantRepo.create({ name: "Tenant Gamma", code: "T-GAMMA" });
+    const tenantB = await tenantRepo.create({ name: "Tenant Zeta", code: "T-ZETA" });
+
+    const orgB = await orgRepo.create({ tenantId: tenantB.id, name: "Zeta Org", code: "ZETA-ORG" });
+
+    // Attempt to create legal entity in Tenant A referencing organization in Tenant B (must fail foreign key violation)
+    await assert.rejects(async () => {
+      const db = getDb();
+      await db.insert(legalEntities).values({
+        tenantId: tenantA.id,
+        organizationId: orgB.id,
+        name: "Invalid Cross-Tenant LE",
       });
     });
   });

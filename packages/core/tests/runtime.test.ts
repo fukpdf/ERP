@@ -176,92 +176,270 @@ describe('RuntimeLifecycle Engine', () => {
     assert.equal(termLifecycle.getState(), 'TERMINATED');
   });
 
-  // Test E — Shutdown timeout handling & late cleanup isolation (DEF-015)
-  it('resolves shutdown to TERMINATED even when shutdown handlers exceed timeout', async () => {
+  // --- DETERMINISTIC LIFECYCLE CONTRACT (DEF-015) ---
+
+  it('cleanup completes before timeout', async () => {
     const lifecycle = new RuntimeLifecycle();
     lifecycle.markReady();
-
-    let lateHandlerCompleted = false;
-    let receivedSignal: AbortSignal | undefined;
-
-    // Register a handler that delays longer than the shutdown timeout
-    lifecycle.registerShutdownHandler(async (signal) => {
-      receivedSignal = signal;
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      lateHandlerCompleted = true;
+    let handlerRun = false;
+    lifecycle.registerShutdownHandler(() => {
+      handlerRun = true;
     });
 
-    // Run shutdown with short timeout of 30ms (awaiting full cleanup completion)
-    await lifecycle.shutdown(30);
+    await lifecycle.shutdown(100);
 
     assert.equal(lifecycle.getState(), 'TERMINATED');
-    assert.equal(lifecycle.isLive(), false);
-    assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(lifecycle.hasTimedOut(), false);
     assert.equal(lifecycle.isCleanupComplete(), true);
-    assert.ok(receivedSignal?.aborted);
-
-    assert.equal(lateHandlerCompleted, true);
-
-    const metrics = runtimeMetrics.getSnapshot();
-    assert.ok(typeof metrics.shutdownDurationMs === 'number');
-    assert.ok(metrics.shutdownTimeouts >= 1);
+    assert.equal(handlerRun, true);
   });
 
-  it('captures late cleanup errors after timeout without mutating TERMINATED state (DEF-015)', async () => {
+  it('timeout occurs', async () => {
     const lifecycle = new RuntimeLifecycle();
     lifecycle.markReady();
-
-    const lateError = new Error('Late database socket close failed');
-
+    let handlerCompleted = false;
     lifecycle.registerShutdownHandler(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      throw lateError;
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      handlerCompleted = true;
     });
 
     await lifecycle.shutdown(20);
 
-    assert.equal(lifecycle.getState(), 'TERMINATED');
+    // Timeout occurred, shutdown returned, but cleanup is still running
     assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(lifecycle.isCleanupComplete(), false);
+    assert.equal(lifecycle.getState(), 'TERMINATING');
+    assert.equal(handlerCompleted, false);
+
+    // Let the background cleanup complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(lifecycle.isCleanupComplete(), true);
-    assert.equal(lifecycle.getLateErrors().length, 1);
-    assert.equal(lifecycle.getLateErrors()[0], lateError);
+    assert.equal(handlerCompleted, true);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
   });
 
-  it('shares the exact same Promise across concurrent shutdown calls (DEF-015)', async () => {
+  it('handler observes AbortSignal', async () => {
     const lifecycle = new RuntimeLifecycle();
     lifecycle.markReady();
-
-    let executionCount = 0;
-    lifecycle.registerShutdownHandler(async () => {
-      executionCount++;
-      await new Promise((resolve) => setTimeout(resolve, 50));
+    let observedAbort = false;
+    lifecycle.registerShutdownHandler(async (signal) => {
+      assert.ok(signal);
+      signal?.addEventListener('abort', () => {
+        observedAbort = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 80));
     });
 
-    // Fire 3 concurrent shutdown calls
-    const p1 = lifecycle.shutdown();
-    const p2 = lifecycle.shutdown();
-    const p3 = lifecycle.shutdown();
+    await lifecycle.shutdown(20);
+    assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(observedAbort, true);
+  });
+
+  it('handler ignores AbortSignal', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    let completedIgnoring = false;
+    lifecycle.registerShutdownHandler(async () => {
+      // Ignore any abort signal and complete work
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      completedIgnoring = true;
+    });
+
+    await lifecycle.shutdown(15);
+    assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(completedIgnoring, false);
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(completedIgnoring, true);
+    assert.equal(lifecycle.isCleanupComplete(), true);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+  });
+
+  it('cleanup completes after timeout', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    let completed = false;
+    lifecycle.registerShutdownHandler(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      completed = true;
+    });
+
+    await lifecycle.shutdown(15);
+    assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(lifecycle.isCleanupComplete(), false);
+    assert.equal(lifecycle.getState(), 'TERMINATING');
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(completed, true);
+    assert.equal(lifecycle.isCleanupComplete(), true);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+  });
+
+  it('cleanup fails after timeout', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    const cleanupError = new Error('Database connection failed late');
+    lifecycle.registerShutdownHandler(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      throw cleanupError;
+    });
+
+    await lifecycle.shutdown(15);
+    assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(lifecycle.isCleanupComplete(), false);
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(lifecycle.isCleanupComplete(), true);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(lifecycle.getLateErrors().length, 1);
+    assert.equal(lifecycle.getLateErrors()[0], cleanupError);
+  });
+
+  it('container shutdown fails', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    const containerError = new Error('Container stop failed');
+    const mockContainer: any = {
+      stopAll: async () => {
+        throw containerError;
+      }
+    };
+    lifecycle.attachContainer(mockContainer);
+
+    await lifecycle.shutdown(100);
+
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(lifecycle.isCleanupComplete(), true);
+    assert.equal(lifecycle.getLateErrors().length, 1);
+    assert.equal(lifecycle.getLateErrors()[0], containerError);
+  });
+
+  it('multiple concurrent shutdown calls', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    let handlerCallCount = 0;
+    lifecycle.registerShutdownHandler(async () => {
+      handlerCallCount++;
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+
+    // Fire concurrently
+    const p1 = lifecycle.shutdown(100);
+    const p2 = lifecycle.shutdown(100);
+    const p3 = lifecycle.shutdown(100);
 
     await Promise.all([p1, p2, p3]);
 
-    assert.equal(executionCount, 1);
+    assert.equal(handlerCallCount, 1);
     assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(lifecycle.isCleanupComplete(), true);
   });
 
-  it('safely handles repeated shutdown calls after timeout has occurred (DEF-015)', async () => {
+  it('repeated shutdown after timeout', async () => {
     const lifecycle = new RuntimeLifecycle();
     lifecycle.markReady();
-
     lifecycle.registerShutdownHandler(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 60));
     });
 
-    await lifecycle.shutdown(20);
-    assert.equal(lifecycle.getState(), 'TERMINATED');
+    await lifecycle.shutdown(15);
     assert.equal(lifecycle.hasTimedOut(), true);
+    assert.equal(lifecycle.isCleanupComplete(), false);
 
-    // Repeated call after state is TERMINATED
-    await lifecycle.shutdown();
+    // Call shutdown again after timeout
+    await lifecycle.shutdown(15);
+    assert.equal(lifecycle.getState(), 'TERMINATING');
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(lifecycle.isCleanupComplete(), true);
     assert.equal(lifecycle.getState(), 'TERMINATED');
   });
+
+  it('repeated shutdown after termination', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    let callCount = 0;
+    lifecycle.registerShutdownHandler(() => {
+      callCount++;
+    });
+
+    await lifecycle.shutdown(100);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(callCount, 1);
+
+    // Repeated call after already TERMINATED should be a no-op
+    await lifecycle.shutdown(100);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+    assert.equal(callCount, 1);
+  });
+
+  it('no lifecycle mutation after TERMINATED', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    await lifecycle.shutdown(100);
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+
+    assert.throws(() => {
+      lifecycle.markReady();
+    }, IllegalStateTransitionError);
+
+    assert.throws(() => {
+      lifecycle.markFailed(new Error('Crashing after terminated'));
+    }, IllegalStateTransitionError);
+
+    assert.equal(lifecycle.getState(), 'TERMINATED');
+  });
+
+  it('accurate timeout metric', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    lifecycle.registerShutdownHandler(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    await lifecycle.shutdown(10);
+    const metrics = runtimeMetrics.getSnapshot();
+    assert.ok(metrics.shutdownTimeouts >= 1);
+  });
+
+  it('accurate cleanup-complete state', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    assert.equal(lifecycle.isCleanupComplete(), false);
+
+    await lifecycle.shutdown(100);
+    assert.equal(lifecycle.isCleanupComplete(), true);
+  });
+
+  it('late errors are inspectable', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    const e1 = new Error('First late error');
+    lifecycle.registerShutdownHandler(() => {
+      throw e1;
+    });
+
+    await lifecycle.shutdown(100);
+    const errors = lifecycle.getLateErrors();
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0], e1);
+  });
+
+  it('no unhandled rejection', async () => {
+    const lifecycle = new RuntimeLifecycle();
+    lifecycle.markReady();
+    lifecycle.registerShutdownHandler(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      throw new Error('Async background failure');
+    });
+
+    // Run shutdown with short timeout. The background promise should not cause an unhandled rejection.
+    await lifecycle.shutdown(10);
+    
+    // Wait for the background error to be thrown
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(lifecycle.getLateErrors().length, 1);
+    assert.ok(lifecycle.getLateErrors()[0].message.includes('Async background failure'));
+  });
 });
+
