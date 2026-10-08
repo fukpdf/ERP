@@ -119,12 +119,9 @@ export class RuntimeLifecycle {
   }
 
   markFailed(error: Error): void {
-    this.failureReason = error;
-    try {
-      this.transitionTo('FAILED');
-    } catch {
-      // If already in an un-transitionable state, force FAILED for diagnostic inspection
-      this.state = 'FAILED';
+    this.transitionTo('FAILED');
+    if (!this.failureReason) {
+      this.failureReason = error;
     }
     logger.error('Runtime platform entered FAILED state:', error);
   }
@@ -191,26 +188,28 @@ export class RuntimeLifecycle {
   }
 
   async shutdown(timeoutMs = 15000): Promise<void> {
-    if (this.shutdownPromise) {
-      return this.shutdownPromise;
-    }
-
     if (this.state === 'TERMINATED') {
       return;
+    }
+
+    if (this.shutdownPromise) {
+      return this.shutdownPromise;
     }
 
     const shutdownStart = Date.now();
 
     this.shutdownPromise = (async () => {
-      // Step 1: Ingress shutoff (DRAINING)
+      // Step 1: Ingress shutoff (DRAINING) - only valid when transitioning from READY
       if (this.state === 'READY') {
         this.transitionTo('DRAINING');
         logger.info('Runtime entered DRAINING state: operational ingress shut off.');
       }
 
-      // Step 2: Termination preparation
-      this.transitionTo('TERMINATING');
-      logger.info('Runtime entering TERMINATING state: executing shutdown handlers and stopping container services...');
+      // Step 2: Termination preparation - skip if already FAILED or TERMINATING
+      if (this.state !== 'FAILED' && this.state !== 'TERMINATING') {
+        this.transitionTo('TERMINATING');
+        logger.info('Runtime entering TERMINATING state: executing shutdown handlers and stopping container services...');
+      }
 
       let timer: NodeJS.Timeout | undefined;
       const timeoutPromise = new Promise<void>((_, reject) => {

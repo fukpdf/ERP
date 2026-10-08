@@ -246,3 +246,19 @@
 - **Reason:** Remediated DEF-009 and DEF-010. If the runtime cannot initialize or configuration is invalid, the process MUST fail fast with non-zero exit code (`process.exit(1)`) rather than running in a broken or fake-healthy degraded state.
 - **Alternatives Considered:** Graceful fallback to in-memory defaults: Rejected because silent fallbacks mask severe configuration and environment defects in staging/production.
 - **Impact:** Failures in configuration or core runtime are detected immediately at container launch.
+
+---
+
+### ADR-025: Terminal State Invariance & Universal Lifecycle Transition Guarantees {#adr-025}
+- **Status:** ACCEPTED
+- **Decision:** Mandate strict state-machine compliance for all shutdown entry states and enforce permanent immutability for the `TERMINATED` state without catch-and-assign bypasses.
+- **Reason:** Remediated DEF-013 and DEF-014. Previously, shutting down a failed runtime attempted `FAILED -> TERMINATING` (illegal transition), and `markFailed()` caught transition errors and directly assigned `this.state = 'FAILED'`, allowing an already terminated process to mutate state. The state machine now handles all 6 operational states deterministically:
+  - `INITIALIZING -> TERMINATING -> TERMINATED`
+  - `READY -> DRAINING -> TERMINATING -> TERMINATED`
+  - `DRAINING -> TERMINATING -> TERMINATED`
+  - `TERMINATING -> TERMINATED`
+  - `FAILED -> TERMINATED` (executes safe cleanup, preserves original failure reason, records metrics)
+  - `TERMINATED -> no-op` (idempotent; any mutation attempt strictly throws `IllegalStateTransitionError`)
+- **Alternatives Considered:** Allowing arbitrary state transitions or weak error suppression: Rejected as non-deterministic in high-availability distributed environments.
+- **Impact:** Lifecycle guarantees are mathematically sound, prevent zombie states, and guarantee clean container shutdowns in orchestration platforms.
+

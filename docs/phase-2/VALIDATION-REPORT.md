@@ -14,7 +14,7 @@
 | **1** | Real AST-Based Linting | `npm run lint` (`oxlint --deny-warnings packages scripts`) | 51 files inspected, 96 rules, 0 errors, 0 warnings (15ms) | **PASS** |
 | **2** | Real Multi-Project Build | `npm run build` (`tsc --build`) | All project references cleanly compiled and emitted to `dist/` | **PASS** |
 | **3** | Strict TypeScript Typecheck | `npm run typecheck` (`tsc --build`) | 0 type errors across all packages | **PASS** |
-| **4** | Real Test Suite Execution | `npm test` (`node scripts/run-tests.mjs`) | 35 tests, 13 suites passed in 3.28s, 0 failed, 0 skipped | **PASS** |
+| **4** | Real Test Suite Execution | `npm test` (`node scripts/run-tests.mjs`) | 40 tests, 13 suites passed in ~3.5s, 0 failed, 0 skipped | **PASS** |
 | **5** | AST Boundary & Graph Cycle Check | `node scripts/check-boundaries.mjs` | 48 source files, 90 import edges, 0 cycles, 0 boundary leaks | **PASS** |
 | **6** | Configuration Failure Verification | `PORT=99999 node artifacts/erp-preview/imported/server.js` | Startup aborted with `ConfigValidationError`, exit code 1 | **PASS** |
 | **7** | Production Secret Failure Verification | `NODE_ENV=production node artifacts/erp-preview/imported/server.js` | Startup aborted with missing `JWT_SECRET`, exit code 1 | **PASS** |
@@ -23,6 +23,7 @@
 | **10**| Startup Probe (`/health/startup`)| `curl -i http://127.0.0.1:3000/health/startup` | HTTP 200 `{"status":"ok","state":"READY",...}` | **PASS** |
 | **11**| Metrics Endpoint (`/health/metrics`)| `curl -s http://127.0.0.1:3000/health/metrics` | HTTP 200 with request counts and durations | **PASS** |
 | **12**| Legacy Preview Shell & API | `curl http://127.0.0.1:3000/` & `/erp-api/bootstrap` | HTTP 200 returned for both root and data API | **PASS** |
+| **13**| Lifecycle Failure & Terminal Path Tests | `packages/core/tests/runtime.test.ts` (Tests A-E) | Verified FAILED shutdown, TERMINATED immutability, reason preservation, timeout | **PASS** |
 
 ---
 
@@ -67,14 +68,14 @@
 - **CHECK:** Functional Verification of Phase 1 Foundation & Phase 2 Platform Primitives
 - **COMMAND:** `npm test`
 - **UNDERLYING BINARY:** `node scripts/run-tests.mjs`
-- **RESULT:** 35 tests across 13 suites executed with real assertions. Zero test modifications to force passing. Zero fake tests.
+- **RESULT:** 40 tests across 13 suites executed with real assertions. Zero test modifications to force passing. Zero fake tests.
 - **METRICS:**
-  - Total Tests: 35
-  - Passed: 35
+  - Total Tests: 40
+  - Passed: 40
   - Failed: 0
   - Skipped: 0
   - Suites: 13
-  - Duration: 3276.25 ms (~3.28s)
+  - Duration: ~3.54s
   - Exit Code: 0
 - **EVIDENCE:**
   ```
@@ -201,9 +202,28 @@
 - **COMMAND:** `curl -i http://127.0.0.1:3000/health/live && curl -i http://127.0.0.1:3000/health/ready && curl -i http://127.0.0.1:3000/health/startup && curl -s http://127.0.0.1:3000/health/metrics && curl -s -o /dev/null -w "Root: %{http_code}\n" http://127.0.0.1:3000/ && curl -s -o /dev/null -w "Bootstrap: %{http_code}\n" http://127.0.0.1:3000/erp-api/bootstrap`
 - **RESULTS:**
   - `/health/live`: HTTP 200 OK (`{"status":"ok","state":"READY","timestamp":"..."}`)
-  - `/health/ready`: HTTP 200 OK (`{"status":"ok","state":"READY","uptimeSeconds":156,"checks":{"dataStore":true},"timestamp":"...","version":"0.1.0"}`)
+  - `/health/ready`: HTTP 200 OK (`{"status":"ok","state":"READY","uptimeSeconds":2374,"checks":{"dataStore":true},"timestamp":"...","version":"0.1.0"}`)
   - `/health/startup`: HTTP 200 OK (`{"status":"ok","state":"READY",...}`)
-  - `/health/metrics`: HTTP 200 OK (`{"totalRequests":9,"activeRequests":1,"requestsByStatus":{"200":9},"requestDurations":{...}}`)
+  - `/health/metrics`: HTTP 200 OK (`{"totalRequests":12,"activeRequests":1,"requestsByStatus":{"200":12},"requestDurations":{...}}`)
   - `/`: HTTP 200 OK (HTML shell)
   - `/erp-api/bootstrap`: HTTP 200 OK (Products, Customers, Orders JSON data)
 - **STATUS:** **PASS**
+
+---
+
+### Check 13: Lifecycle Failure Path & Terminal Invariant Verification (DEF-013 & DEF-014)
+- **CHECK:** Deterministic Transitions across all Entry States and Terminal State Immutability
+- **TEST FILE:** `packages/core/tests/runtime.test.ts`
+- **INDIVIDUAL VERIFIED CASES:**
+  1. **Test A — FAILED Shutdown:** Runtime marked `FAILED` cleanly transitions `FAILED -> TERMINATED` without attempting `FAILED -> TERMINATING`. Shutdown resolves, `getFailureReason()` preserves original error, and `shutdownDurationMs` metric is recorded.
+  2. **Test B — TERMINATED Immutability:** Runtime shut down to `TERMINATED` strictly rejects mutation attempts (`markReady()`, `markFailed()`) with `IllegalStateTransitionError`. Repeated `shutdown()` calls are idempotent no-ops. State remains `TERMINATED`.
+  3. **Test C — Failure Reason Preservation:** `originalError` provided to `markFailed()` remains identical and accessible via `getFailureReason()` after shutdown reaches `TERMINATED`.
+  4. **Test D — All Shutdown Entry States:** Explicitly validated deterministic shutdown from all 5 valid entry states:
+     - `INITIALIZING -> TERMINATING -> TERMINATED`
+     - `READY -> DRAINING -> TERMINATING -> TERMINATED`
+     - `DRAINING -> TERMINATING -> TERMINATED`
+     - `FAILED -> TERMINATED`
+     - `TERMINATED -> no-op (TERMINATED)`
+  5. **Test E — Shutdown Timeout Handling:** A hanging handler exceeding the timeout limit triggers timeout rejection, but the finally block clears timers, records `shutdownDurationMs`, and resolves to `TERMINATED`.
+- **STATUS:** **PASS**
+

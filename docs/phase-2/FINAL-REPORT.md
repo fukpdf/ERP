@@ -68,10 +68,11 @@ In strict accordance with Phase 2 scope boundaries (zero business-domain ERP mod
 | **Real Linting** | `npm run lint` (`oxlint --deny-warnings`) | 51 files inspected, 96 rules, 0 errors, 0 warnings (15ms) | Executed AST linter with zero warnings | **PASS** |
 | **Real Compilation**| `npm run build` (`tsc --build`) | All packages cleanly compiled to `dist/` | Declarations, maps, and JS emitted without diagnostics | **PASS** |
 | **Strict Typecheck**| `npm run typecheck` (`tsc --build`) | 0 type errors under strict mode | Full composite project reference compilation clean | **PASS** |
-| **Complete Tests** | `npm test` (`node scripts/run-tests.mjs`) | 35/35 tests passed across 13 suites (3.28s) | 100% assertions verified; zero fake tests | **PASS** |
+| **Complete Tests** | `npm test` (`node scripts/run-tests.mjs`) | 40/40 tests passed across 13 suites (~3.54s) | 100% assertions verified; zero fake tests | **PASS** |
 | **Boundary & Cycle**| `node scripts/check-boundaries.mjs` | 48 files, 90 edges, 0 cycles, 0 boundary violations | AST-based graph traversal verified downward rules | **PASS** |
 | **Config Failure** | `PORT=99999 node server.js` | Process aborts with `ConfigValidationError`, exit code 1 | Real failure output captured | **PASS** |
 | **Secret Failure** | `NODE_ENV=production node server.js` | Process aborts due to missing `JWT_SECRET`, exit code 1 | Real failure output captured | **PASS** |
+| **Lifecycle Failure**| `packages/core/tests/runtime.test.ts` (Tests A-E)| Verified FAILED shutdown, TERMINATED immutability, reason preservation | Complete state machine invariance confirmed | **PASS** |
 | **Liveness Probe** | `curl -i http://127.0.0.1:3000/health/live` | HTTP 200 OK | `{"status":"ok","state":"READY",...}` | **PASS** |
 | **Readiness Probe** | `curl -i http://127.0.0.1:3000/health/ready` | HTTP 200 OK | `{"status":"ok","state":"READY","checks":{"dataStore":true},...}` | **PASS** |
 | **Startup Probe** | `curl -i http://127.0.0.1:3000/health/startup` | HTTP 200 OK | `{"status":"ok","state":"READY",...}` | **PASS** |
@@ -106,22 +107,25 @@ In compliance with Phase 2 scope boundaries, the following were intentionally no
 2. **DEF-010 (HIGH — RESOLVED):** Server hard-coded `PORT = 3000` and `HOST = "0.0.0.0"`, bypassing the typed configuration engine. Remediated by wiring `core.parseConfig(process.env)` directly into the server startup path as the sole source of runtime parameters.
 3. **DEF-011 (HIGH — RESOLVED):** `DRAINING` state did not enforce ingress shutoff. Remediated by adding `isIngressOpen()` and `IllegalStateTransitionError` to `RuntimeLifecycle`. Server rejects new operational requests with HTTP 503 (`Retry-After: 5`) during drain, while in-flight requests complete cleanly.
 4. **DEF-012 (HIGH — RESOLVED):** `ServiceContainer` was implemented in isolation without runtime lifecycle integration. Remediated by attaching the container to `RuntimeLifecycle`, registering `dataStore` and `httpServer` with explicit dependency edges, starting them via `container.startAll()`, and stopping them via `container.stopAll()` during graceful shutdown.
+5. **DEF-013 (HIGH — RESOLVED):** Runtime shutdown from `FAILED` state attempted illegal `FAILED -> TERMINATING` transition. Remediated by updating `shutdown()` semantics to execute safe cleanup without transitioning through `DRAINING` or `TERMINATING`, deterministically transitioning `FAILED -> TERMINATED`, and preserving the failure reason.
+6. **DEF-014 (HIGH — RESOLVED):** `markFailed()` caught transition errors and forcefully assigned `this.state = 'FAILED'`, breaking the terminal-state invariant of `TERMINATED`. Remediated by removing direct mutation and enforcing strict transition checks so `TERMINATED` is permanently immutable.
 
 ### Earlier Code Quality Deficiencies (Remediated)
-5. **DEF-007 (Medium — RESOLVED):** Unused `logger` import and redundant regex escape in `packages/core/src/http/context-middleware.ts`. Fixed.
-6. **DEF-008 (Low — RESOLVED):** Unused `InternalError` import in `packages/core/tests/http.test.ts`. Fixed.
+7. **DEF-007 (Medium — RESOLVED):** Unused `logger` import and redundant regex escape in `packages/core/src/http/context-middleware.ts`. Fixed.
+8. **DEF-008 (Low — RESOLVED):** Unused `InternalError` import in `packages/core/tests/http.test.ts`. Fixed.
 
 ---
 
 ## 6. ARCHITECTURAL DECISIONS (Phase 2 ADRs)
 
-Six architectural decisions have been formalized in `docs/DECISIONS.md`:
+Seven architectural decisions have been formalized in `docs/DECISIONS.md`:
 - **ADR-019 (ACCEPTED):** Runtime Lifecycle State Machine with Multi-Phase Drain and Graceful Termination.
 - **ADR-020 (ACCEPTED):** Topological Dependency Resolution and Cycle Detection in Lightweight ServiceContainer.
 - **ADR-021 (ACCEPTED):** Non-Secret vs Secret Configuration Partitioning with Zero-Leakage Error Handling.
 - **ADR-022 (ACCEPTED):** Multi-Probe Health Architecture (`/health/live`, `/health/ready`, `/health/startup`).
 - **ADR-023 (ACCEPTED):** Mandatory Ingress Shutoff and In-Flight Request Draining.
 - **ADR-024 (ACCEPTED):** Zero-Fallback Runtime Bootstrap and Central Configuration Binding.
+- **ADR-025 (ACCEPTED):** Terminal State Invariance and Universal Lifecycle Transition Guarantees.
 
 ---
 
@@ -130,13 +134,16 @@ Six architectural decisions have been formalized in `docs/DECISIONS.md`:
 ```
 ================================================================================
 PHASE 2 STATUS:             CERTIFIED COMPLETE
-DEFICIENCIES RESOLVED:      DEF-009, DEF-010, DEF-011, DEF-012 (100% fixed)
+DEFICIENCIES RESOLVED:      DEF-009, DEF-010, DEF-011, DEF-012, DEF-013, DEF-014 (100% fixed)
+FAILED SHUTDOWN:            SAFE & DETERMINISTIC (FAILED -> TERMINATED; metrics recorded)
+TERMINATED IMMUTABILITY:    ENFORCED (Mutations rejected with IllegalStateTransitionError)
+FAILURE REASON PRESERVED:   CONFIRMED (getFailureReason() returns original error)
+SHUTDOWN IDEMPOTENCY:       VERIFIED (Multiple calls are safe no-ops)
 MANDATORY RUNTIME STARTUP:  ENFORCED (Zero fake fallbacks; failures exit 1)
 TYPED CONFIGURATION:        WIRED (Sole source of runtime settings)
 DRAINING INGRESS SHUTOFF:   ENFORCED (HTTP 503 on new work; in-flight drains)
 SERVICE CONTAINER:          INTEGRATED (Topological startAll/stopAll in runtime)
-SHUTDOWN METRICS:           REAL (Duration measured and recorded)
-TEST SUITE:                 35/35 PASSED (100% assertions across 13 suites)
+TEST SUITE:                 40/40 PASSED (100% assertions across 13 suites)
 LINT PASSING:               51 files inspected, 0 warnings, 0 errors
 BUILD & TYPECHECK:          PASS (tsc --build clean)
 ARCHITECTURAL BOUNDARIES:   PASS (0 cycles, 0 boundary leaks)

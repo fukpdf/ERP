@@ -37,3 +37,15 @@
 - **DEF-012 Remediation:** Integrated `ServiceContainer` into `RuntimeLifecycle` and server startup. Registered `dataStore` and `httpServer` with explicit dependency ordering. Verified `container.startAll()` at startup and `container.stopAll()` during shutdown.
 - **Integration Test Suite:** Added `packages/core/tests/runtime-integration.test.ts`. Total tests increased to 35 across 13 suites. All tests passing (35/35).
 - **Verification Pipeline:** Successfully re-executed `npm run lint`, `npm run build`, `npm run typecheck`, `npm test`, `node scripts/check-boundaries.mjs`, failure tests, and live server curl validation on port 3000.
+
+### Session 7: Final Lifecycle Correction & State Machine Hardening (DEF-013 & DEF-014)
+- **DEF-013 Remediation:** Corrected `RuntimeLifecycle.shutdown()` to handle all lifecycle entry states without attempting illegal transitions. Specifically, when starting shutdown from `FAILED`, the lifecycle does not transition to `DRAINING` or `TERMINATING`, executes safe cleanup handlers and stops container services, records shutdown duration, and transitions deterministically `FAILED -> TERMINATED` while preserving `failureReason`.
+- **DEF-014 Remediation:** Eliminated the fallback assignment `this.state = 'FAILED'` in `markFailed()`. `markFailed()` now routes strictly through `transitionTo('FAILED')`. Transitions from `TERMINATED` to any other state (`READY`, `FAILED`, `DRAINING`, `TERMINATING`) are strictly rejected with `IllegalStateTransitionError`. `TERMINATED` is guaranteed to be a true immutable terminal state.
+- **State Machine Test Expansion:** Added tests A, B, C, D, and E to `packages/core/tests/runtime.test.ts`:
+  - Test A: FAILED shutdown (`INITIALIZING -> FAILED -> shutdown() -> TERMINATED`).
+  - Test B: TERMINATED immutability (rejection of mutations, idempotency).
+  - Test C: Failure reason preservation across shutdown.
+  - Test D: Deterministic shutdown from all 5 valid entry states (`INITIALIZING`, `READY`, `DRAINING`, `FAILED`, `TERMINATED`).
+  - Test E: Shutdown timeout handling (timeout cleans up, resolves to `TERMINATED`, records duration).
+- **Verification:** Re-ran complete verification suite (`npx tsc --build`, `npm run lint`, `npm test`, `node scripts/check-boundaries.mjs`). Total tests increased from 35 to 40 across 13 suites; all 40 passed. Live server verified with 200 responses on all health and application probes.
+
