@@ -128,6 +128,49 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_entity ON audit_logs (tenant_id, entity_type, entity_id);
+
+-- 12. Row Level Security (RLS) Policies for Multi-Tenant Isolation
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON organizations;
+CREATE POLICY tenant_isolation_policy ON organizations
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+ALTER TABLE legal_entities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON legal_entities;
+CREATE POLICY tenant_isolation_policy ON legal_entities
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON users;
+CREATE POLICY tenant_isolation_policy ON users
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON roles;
+CREATE POLICY tenant_isolation_policy ON roles
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON role_permissions;
+CREATE POLICY tenant_isolation_policy ON role_permissions
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON user_roles;
+CREATE POLICY tenant_isolation_policy ON user_roles
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON audit_logs;
+CREATE POLICY tenant_isolation_policy ON audit_logs
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 `;
 
 export async function applyMigrations(): Promise<{ success: boolean; appliedCount: number; durationMs: number }> {

@@ -237,7 +237,7 @@ export class RuntimeLifecycle {
         }, timeoutMs);
       });
 
-      const shutdownAction = async (): Promise<void> => {
+      const cleanupPromise = (async () => {
         const signal = abortController.signal;
         // Execute registered shutdown handlers in reverse order (LIFO)
         for (const handler of [...this.shutdownHandlers].reverse()) {
@@ -272,14 +272,22 @@ export class RuntimeLifecycle {
         this.cleanupFinished = true;
         if (this.timedOut) {
           logger.info('Late shutdown cleanup completed after timeout.');
+        } else {
+          logger.info('All shutdown handlers and container services completed cleanly.');
         }
-      };
+      })();
 
       try {
-        await Promise.race([shutdownAction(), timeoutPromise]);
-        logger.info('All shutdown handlers and container services completed cleanly.');
+        await Promise.race([cleanupPromise, timeoutPromise]);
       } catch (err) {
-        logger.warn('Forced shutdown due to timeout or unhandled handler error:', { error: String(err) });
+        logger.warn('Shutdown timeout reached; cleanup continuing in background.', { error: String(err) });
+      }
+
+      // Ensure cleanupPromise fully settles before transitioning to TERMINATED
+      try {
+        await cleanupPromise;
+      } catch (err) {
+        logger.error('Cleanup finished with error:', err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (timer) clearTimeout(timer);
         const duration = Date.now() - shutdownStart;

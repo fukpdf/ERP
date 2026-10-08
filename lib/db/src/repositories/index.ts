@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { eq, and } from "drizzle-orm";
-import { getDb } from "../client.js";
+import { eq, and, sql } from "drizzle-orm";
+import { getDb, getActiveTenantId } from "../client.js";
 import {
   tenants,
   organizations,
@@ -14,6 +14,13 @@ import {
   locales,
   auditLogs,
 } from "../schema/index.js";
+
+async function verifyTenantContext(db: any, tenantId: string) {
+  const activeTenant = getActiveTenantId();
+  if (activeTenant && activeTenant !== tenantId) {
+    throw new Error(`Cross-tenant security violation: Active tenant context '${activeTenant}' is not authorized to access tenant '${tenantId}'`);
+  }
+}
 
 // ============================================================================
 // 1. TENANT REPOSITORY
@@ -56,6 +63,7 @@ export class TenantRepository {
 export class OrganizationRepository {
   async create(data: { tenantId: string; name: string; code: string }, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, data.tenantId);
     const [result] = await db
       .insert(organizations)
       .values({
@@ -69,6 +77,7 @@ export class OrganizationRepository {
 
   async listByTenant(tenantId: string, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, tenantId);
     return await db
       .select()
       .from(organizations)
@@ -82,6 +91,7 @@ export class OrganizationRepository {
 export class UserRepository {
   async create(data: { tenantId: string; email: string; fullName: string; status?: string }, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, data.tenantId);
     const [result] = await db
       .insert(users)
       .values({
@@ -96,11 +106,13 @@ export class UserRepository {
 
   async listByTenant(tenantId: string, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, tenantId);
     return await db.select().from(users).where(eq(users.tenantId, tenantId));
   }
 
   async findByEmail(tenantId: string, email: string, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, tenantId);
     const [result] = await db
       .select()
       .from(users)
@@ -115,6 +127,7 @@ export class UserRepository {
 export class RolePermissionRepository {
   async createRole(data: { tenantId: string; name: string; description?: string; isSystem?: boolean }, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, data.tenantId);
     const [result] = await db
       .insert(roles)
       .values({
@@ -143,6 +156,7 @@ export class RolePermissionRepository {
 
   async assignPermissionToRole(data: { tenantId: string; roleId: string; permissionId: string }, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, data.tenantId);
     await db.insert(rolePermissions).values({
       tenantId: data.tenantId,
       roleId: data.roleId,
@@ -152,6 +166,7 @@ export class RolePermissionRepository {
 
   async assignRoleToUser(data: { tenantId: string; userId: string; roleId: string }, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, data.tenantId);
     await db.insert(userRoles).values({
       tenantId: data.tenantId,
       userId: data.userId,
@@ -161,6 +176,7 @@ export class RolePermissionRepository {
 
   async getUserPermissions(tenantId: string, userId: string, dbCtx?: any): Promise<string[]> {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, tenantId);
     const assignedUserRoles = await db
       .select()
       .from(userRoles)
@@ -229,6 +245,7 @@ export class AuditLogRepository {
     dbCtx?: any
   ) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, data.tenantId);
 
     // Fetch previous hash for tenant chain
     const tenantLogs = await db
@@ -262,6 +279,7 @@ export class AuditLogRepository {
 
   async listByTenant(tenantId: string, dbCtx?: any) {
     const db = dbCtx || getDb();
+    await verifyTenantContext(db, tenantId);
     return await db.select().from(auditLogs).where(eq(auditLogs.tenantId, tenantId));
   }
 }

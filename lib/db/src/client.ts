@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { sql } from "drizzle-orm";
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import pg from "pg";
@@ -5,6 +7,12 @@ import { PGlite } from "@electric-sql/pglite";
 import * as schema from "./schema/index.js";
 
 const { Pool } = pg;
+
+const tenantStorage = new AsyncLocalStorage<string>();
+
+export function getActiveTenantId(): string | undefined {
+  return tenantStorage.getStore();
+}
 
 export interface DatabaseConfig {
   connectionString?: string;
@@ -125,10 +133,10 @@ export async function runInTenantContext<T>(
     throw new Error("Invalid tenant context: tenantId is required");
   }
 
-  return await executeTransaction(async (tx: any) => {
-    if (activeEngine === "pg") {
-      await tx.execute(`SELECT set_config('app.current_tenant_id', '${tenantId}', true);`);
-    }
-    return await callback(tx);
+  return await tenantStorage.run(tenantId, async () => {
+    return await executeTransaction(async (tx: any) => {
+      await tx.execute(sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`);
+      return await callback(tx);
+    });
   });
 }

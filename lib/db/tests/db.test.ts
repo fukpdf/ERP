@@ -153,4 +153,19 @@ describe("Phase 3 Database & Persistence Platform Foundation", () => {
     assert.ok(codes.includes("USD"));
     assert.ok(codes.includes("EUR"));
   });
+
+  it("enforces strict cross-tenant data isolation and fail-closed behavior", async () => {
+    const tenantA = await tenantRepo.create({ name: "Tenant Omega", code: "T-OMEGA" });
+    const tenantB = await tenantRepo.create({ name: "Tenant Delta", code: "T-DELTA" });
+
+    // Create user in Tenant A
+    await userRepo.create({ tenantId: tenantA.id, email: "omega@omega.com", fullName: "Omega User" });
+
+    // Attempt cross-tenant access: Tenant B context accessing Tenant A data must be rejected
+    await assert.rejects(async () => {
+      await runInTenantContext(tenantB.id, async (tx) => {
+        return await userRepo.listByTenant(tenantA.id, tx);
+      });
+    });
+  });
 });

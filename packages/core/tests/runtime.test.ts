@@ -191,21 +191,16 @@ describe('RuntimeLifecycle Engine', () => {
       lateHandlerCompleted = true;
     });
 
-    // Run shutdown with short timeout of 30ms
+    // Run shutdown with short timeout of 30ms (awaiting full cleanup completion)
     await lifecycle.shutdown(30);
 
     assert.equal(lifecycle.getState(), 'TERMINATED');
     assert.equal(lifecycle.isLive(), false);
     assert.equal(lifecycle.hasTimedOut(), true);
-    assert.equal(lifecycle.isCleanupComplete(), false);
+    assert.equal(lifecycle.isCleanupComplete(), true);
     assert.ok(receivedSignal?.aborted);
 
-    // Wait for late handler to complete in background
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
     assert.equal(lateHandlerCompleted, true);
-    assert.equal(lifecycle.isCleanupComplete(), true);
-    assert.equal(lifecycle.getState(), 'TERMINATED'); // State remains strictly TERMINATED
 
     const metrics = runtimeMetrics.getSnapshot();
     assert.ok(typeof metrics.shutdownDurationMs === 'number');
@@ -227,11 +222,7 @@ describe('RuntimeLifecycle Engine', () => {
 
     assert.equal(lifecycle.getState(), 'TERMINATED');
     assert.equal(lifecycle.hasTimedOut(), true);
-
-    // Wait for late failing handler to finish
-    await new Promise((resolve) => setTimeout(resolve, 150));
-
-    assert.equal(lifecycle.getState(), 'TERMINATED'); // State remains strictly TERMINATED
+    assert.equal(lifecycle.isCleanupComplete(), true);
     assert.equal(lifecycle.getLateErrors().length, 1);
     assert.equal(lifecycle.getLateErrors()[0], lateError);
   });

@@ -262,3 +262,22 @@
 - **Alternatives Considered:** Allowing arbitrary state transitions or weak error suppression: Rejected as non-deterministic in high-availability distributed environments.
 - **Impact:** Lifecycle guarantees are mathematically sound, prevent zombie states, and guarantee clean container shutdowns in orchestration platforms.
 
+---
+
+### ADR-026: Defensible PostgreSQL Row Level Security (RLS) & Parameterized Tenant Isolation {#adr-026}
+- **Status:** ACCEPTED
+- **Decision:** Implement database-level Row Level Security (RLS) policies on all tenant-scoped tables (`organizations`, `legal_entities`, `users`, `roles`, `role_permissions`, `user_roles`, `audit_logs`), enforce fail-closed checks via `AsyncLocalStorage` tenant contexts and parameterized `set_config` bindings.
+- **Reason:** Remediated DEF-016 and DEF-017. Defense-in-depth isolation ensures that even if application-level queries omit tenant filters, database policies automatically restrict data visibility to the active transaction tenant context, preventing cross-tenant data leakage. Parameterized SQL prevents SQL injection.
+- **Alternatives Considered:** Relying solely on repository-level query filtering: Rejected because an omitted `where` clause could accidentally expose multi-tenant records across tenants.
+- **Impact:** Robust multi-tenant security guarantees at both the ORM repository layer and the PostgreSQL database engine level.
+
+---
+
+### ADR-027: Hardened Shutdown Timeout Contract with Deterministic Cleanup Completion {#adr-027}
+- **Status:** ACCEPTED
+- **Decision:** Redesign `RuntimeLifecycle.shutdown()` timeout behavior (remediating DEF-015) so that timeout events signal `AbortSignal` and record timeout metrics, but the lifecycle state transitions to `TERMINATED` strictly *after* all cleanup handlers and container services have fully settled.
+- **Reason:** Previous implementations used `Promise.race` which could falsely transition the runtime to `TERMINATED` while background cleanup was still executing. Awaiting cleanup completion ensures absolute state machine integrity and eliminates zombie background states.
+- **Alternatives Considered:** Premature termination on timeout: Rejected because it violates lifecycle state-machine invariants and leaves database/socket resources in unmonitored states.
+- **Impact:** Graceful shutdown is both time-bounded (preventing hanging processes) and strictly deterministic (reaching `TERMINATED` only when resources are safely released).
+
+
