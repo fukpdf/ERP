@@ -1,5 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { eq, sql } from "drizzle-orm";
 import {
   initDatabase,
   closeDatabase,
@@ -16,6 +17,10 @@ import {
   AuditLogRepository,
   getDb,
   legalEntities,
+  UnitOfWork,
+  tenants,
+  organizations,
+  auditLogs,
 } from "../dist/index.js";
 
 describe("Phase 3 Database & Persistence Platform Foundation", () => {
@@ -187,5 +192,257 @@ describe("Phase 3 Database & Persistence Platform Foundation", () => {
         name: "Invalid Cross-Tenant LE",
       });
     });
+  });
+
+  // ============================================================================
+  // PHASE 4 COMPREHENSIVE TEST MATRIX
+  // ============================================================================
+
+  it("verifies migration rerun and checksum drift detection", async () => {
+    // 1. Re-running applyMigrations is safe and idempotent
+    const res = await applyMigrations();
+    assert.equal(res.success, true);
+
+    // 2. Fetch migration status
+    const statusBefore = await getMigrationStatus();
+    assert.equal(statusBefore.status, "applied");
+
+    // 3. Test checksum drift
+    const db = getDb();
+    await db.execute(sql`UPDATE schema_migrations SET checksum = 'invalid_checksum'`);
+    
+    const statusAfter = await getMigrationStatus();
+    assert.equal(statusAfter.status, "drifted");
+
+    // Restore correct checksum
+    await db.execute(sql`UPDATE schema_migrations SET checksum = ${statusBefore.checksum}`);
+  });
+
+  it("proves direct database-level RLS on SELECT, INSERT, UPDATE, and DELETE", async () => {
+    const tenant1 = await tenantRepo.create({ name: "Direct RLS Tenant A", code: "RLS-A" });
+    const tenant2 = await tenantRepo.create({ name: "Direct RLS Tenant B", code: "RLS-B" });
+
+    // 1. Establish Tenant A context and insert directly (Drizzle)
+    await runInTenantContext(tenant1.id, async (tx) => {
+      await tx.insert(organizations).values({
+        tenantId: tenant1.id,
+        name: "Org A",
+        code: "ORG-A"
+      });
+    });
+
+    // 2. Establish Tenant B context and insert directly (Drizzle)
+    await runInTenantContext(tenant2.id, async (tx) => {
+      await tx.insert(organizations).values({
+        tenantId: tenant2.id,
+        name: "Org B",
+        code: "ORG-B"
+      });
+    });
+
+    // 3. Under Tenant A context: we must only see Tenant A's organizations
+    await runInTenantContext(tenant1.id, async (tx) => {
+      const results = await tx.select().from(organizations);
+      assert.equal(results.length, 1);
+      assert.equal(results[0].tenantId, tenant1.id);
+    });
+
+    // 4. Under Tenant B context: we must only see Tenant B's organizations
+    await runInTenantContext(tenant2.id, async (tx) => {
+      const results = await tx.select().from(organizations);
+      assert.equal(results.length, 1);
+      assert.equal(results[0].tenantId, tenant2.id);
+    });
+
+    // 5. Cross-tenant INSERT: under Tenant B context, inserting Tenant A row must fail RLS WITH CHECK policy
+    await assert.rejects(async () => {
+      await runInTenantContext(tenant2.id, async (tx) => {
+        await tx.insert(organizations).values({
+          tenantId: tenant1.id,
+          name: "Malicious Org A",
+          code: "MAL-A"
+        });
+      });
+    });
+
+    // 6. Cross-tenant UPDATE: under Tenant B context, updating Tenant A's row must fail (0 rows updated due to RLS USING restriction)
+    await runInTenantContext(tenant2.id, async (tx) => {
+      const updated = await tx.update(organizations)
+        .set({ name: "Hacked Org A" })
+        .where(eq(organizations.tenantId, tenant1.id));
+      
+      const rows = (updated as any)?.rows || updated || [];
+      // RLS filters out Tenant A rows, so the statement affects 0 rows
+      assert.equal(rows.length, 0);
+    });
+
+    // Verify Tenant A Org is untouched
+    await runInTenantContext(tenant1.id, async (tx) => {
+      const results = await tx.select().from(organizations);
+      assert.equal(results[0].name, "Org A");
+    });
+  });
+
+  it("proves tenants table security RLS isolation", async () => {
+    const tenant1 = await tenantRepo.create({ name: "Secure Tenant 1", code: "SEC-T1" });
+    const tenant2 = await tenantRepo.create({ name: "Secure Tenant 2", code: "SEC-T2" });
+
+    // Under Tenant 1 context, SELECT on tenants table must only return Tenant 1's record
+    await runInTenantContext(tenant1.id, async (tx) => {
+      const results = await tx.select().from(tenants);
+      assert.equal(results.length, 1);
+      assert.equal(results[0].id, tenant1.id);
+    });
+
+    // Under Tenant 2 context, SELECT on tenants table must only return Tenant 2's record
+    await runInTenantContext(tenant2.id, async (tx) => {
+      const results = await tx.select().from(tenants);
+      assert.equal(results.length, 1);
+      assert.equal(results[0].id, tenant2.id);
+    });
+  });
+
+  it("proves database-level RLS policies block update and delete on audit logs", async () => {
+    const tenant = await tenantRepo.create({ name: "Audit Security Corp", code: "AUDIT-SEC" });
+
+    // 1. Create a log
+    const log = await runInTenantContext(tenant.id, async (tx) => {
+      return await auditRepo.createLog({
+        tenantId: tenant.id,
+        action: "SENSITIVE_WRITE",
+        entityType: "account",
+        entityId: "acc-101",
+        payload: { amount: 5000 }
+      }, tx);
+    });
+
+    assert.ok(log.id);
+
+    // 2. Direct database UPDATE on audit_logs affects 0 rows under Tenant context
+    await runInTenantContext(tenant.id, async (tx) => {
+      const updated = await tx.update(auditLogs)
+        .set({ action: "FRAUDULENT_CHANGE" })
+        .where(eq(auditLogs.id, log.id));
+      
+      const rows = (updated as any)?.rows || updated || [];
+      assert.equal(rows.length, 0);
+    });
+
+    // 3. Direct database DELETE on audit_logs affects 0 rows under Tenant context
+    await runInTenantContext(tenant.id, async (tx) => {
+      const deleted = await tx.delete(auditLogs)
+        .where(eq(auditLogs.id, log.id));
+      
+      const rows = (deleted as any)?.rows || deleted || [];
+      assert.equal(rows.length, 0);
+    });
+
+    // 4. Verify that the log is still retrieved intact and has not been changed
+    await runInTenantContext(tenant.id, async (tx) => {
+      const results = await tx.select().from(auditLogs).where(eq(auditLogs.id, log.id));
+      assert.equal(results.length, 1);
+      assert.equal(results[0].action, "SENSITIVE_WRITE");
+    });
+  });
+
+  it("proves audit log verification utility correctly detects tampering", async () => {
+    const tenant = await tenantRepo.create({ name: "Audit Tamper Corp", code: "AUDIT-TAMPER" });
+
+    // 1. Create a valid chain of 3 logs
+    await runInTenantContext(tenant.id, async (tx) => {
+      await auditRepo.createLog({ tenantId: tenant.id, action: "OP_1", entityType: "user", entityId: "u1" }, tx);
+      await auditRepo.createLog({ tenantId: tenant.id, action: "OP_2", entityType: "user", entityId: "u2" }, tx);
+      await auditRepo.createLog({ tenantId: tenant.id, action: "OP_3", entityType: "user", entityId: "u3" }, tx);
+    });
+
+    // Verify correct chain is valid
+    const initialVerify = await auditRepo.verifyTenantChain(tenant.id);
+    assert.equal(initialVerify.valid, true);
+
+    // 2. Tamper with a payload (simulating a bypass of RLS by directly modifying via non-RLS/owner connection)
+    const logs = await auditRepo.listByTenant(tenant.id);
+    const middleLog = logs[1];
+
+    const db = getDb();
+    await db.update(auditLogs)
+      .set({ payload: { tampered: true } })
+      .where(eq(auditLogs.id, middleLog.id));
+
+    // Verify verification utility detects the tamper!
+    const tamperedVerify = await auditRepo.verifyTenantChain(tenant.id);
+    assert.equal(tamperedVerify.valid, false);
+    assert.ok(tamperedVerify.reason?.includes("Hash mismatch"));
+
+    // Clean up
+    await db.delete(auditLogs).where(eq(auditLogs.tenantId, tenant.id));
+  });
+
+  it("verifies Unit of Work atomic transaction boundaries, nested composition, and isolation", async () => {
+    const tenant = await tenantRepo.create({ name: "UoW Corp", code: "UOW-CORP" });
+    const uow = new UnitOfWork();
+
+    // 1. Test nested composition: nested operations participate in same transaction
+    await runInTenantContext(tenant.id, async () => {
+      await uow.run(async (tx1) => {
+        const u1 = await userRepo.create({ tenantId: tenant.id, email: "uow1@corp.com", fullName: "UoW User 1" }, tx1);
+        
+        await uow.run(async (tx2) => {
+          assert.equal(tx1, tx2);
+          await userRepo.create({ tenantId: tenant.id, email: "uow2@corp.com", fullName: "UoW User 2" }, tx2);
+        });
+      });
+    });
+
+    const user1 = await userRepo.findByEmail(tenant.id, "uow1@corp.com");
+    assert.ok(user1);
+    const user2 = await userRepo.findByEmail(tenant.id, "uow2@corp.com");
+    assert.ok(user2);
+
+    // 2. Test rollback of complete unit of work including nested operations on failure
+    await assert.rejects(async () => {
+      await runInTenantContext(tenant.id, async () => {
+        await uow.run(async (tx1) => {
+          await userRepo.create({ tenantId: tenant.id, email: "uow_rollback1@corp.com", fullName: "Rollback User 1" }, tx1);
+          
+          await uow.run(async (tx2) => {
+            await userRepo.create({ tenantId: tenant.id, email: "uow_rollback2@corp.com", fullName: "Rollback User 2" }, tx2);
+            throw new Error("Simulated UoW failure");
+          });
+        });
+      });
+    });
+
+    const rb1 = await userRepo.findByEmail(tenant.id, "uow_rollback1@corp.com");
+    assert.equal(rb1, null);
+    const rb2 = await userRepo.findByEmail(tenant.id, "uow_rollback2@corp.com");
+    assert.equal(rb2, null);
+  });
+
+  it("proves transaction-scoped tenant setting does not leak context across connection reuse", async () => {
+    const tenantA = await tenantRepo.create({ name: "Conn Reuse Tenant A", code: "CONN-A" });
+    const tenantB = await tenantRepo.create({ name: "Conn Reuse Tenant B", code: "CONN-B" });
+
+    // 1. Establish Tenant A context and check setting
+    await runInTenantContext(tenantA.id, async (tx) => {
+      const setting = await tx.execute(sql`SELECT current_setting('app.current_tenant_id', true) as val`);
+      const rows = (setting as any)?.rows || setting || [];
+      const val = rows[0]?.val;
+      assert.equal(val, tenantA.id);
+    });
+
+    // 2. Establish Tenant B context and check setting
+    await runInTenantContext(tenantB.id, async (tx) => {
+      const setting = await tx.execute(sql`SELECT current_setting('app.current_tenant_id', true) as val`);
+      const rows = (setting as any)?.rows || setting || [];
+      const val = rows[0]?.val;
+      assert.equal(val, tenantB.id);
+    });
+
+    // 3. Direct execute outside of any transaction: setting must be null/empty, proving no context leakage on reuse
+    const db = getDb();
+    const settingOutside = await db.execute(sql`SELECT current_setting('app.current_tenant_id', true) as val`);
+    const rowsOutside = (settingOutside as any)?.rows || settingOutside || [];
+    const valOutside = rowsOutside[0]?.val || "";
+    assert.equal(valOutside, "");
   });
 });

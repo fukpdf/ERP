@@ -150,68 +150,170 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_entity ON audit_logs (tenant_id, entity_type, entity_id);
 
 -- 13. Row Level Security (RLS) Policies
+ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenants FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_policy ON tenants;
+CREATE POLICY tenant_isolation_policy ON tenants
+  USING (id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+  WITH CHECK (id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON organizations;
 CREATE POLICY tenant_isolation_policy ON organizations
   USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 
 ALTER TABLE legal_entities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE legal_entities FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON legal_entities;
 CREATE POLICY tenant_isolation_policy ON legal_entities
   USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON users;
 CREATE POLICY tenant_isolation_policy ON users
   USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roles FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON roles;
 CREATE POLICY tenant_isolation_policy ON roles
   USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 
 ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_permissions FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON role_permissions;
 CREATE POLICY tenant_isolation_policy ON role_permissions
   USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_roles FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON user_roles;
 CREATE POLICY tenant_isolation_policy ON user_roles
   USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation_policy ON audit_logs;
-CREATE POLICY tenant_isolation_policy ON audit_logs
-  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid)
+ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS audit_logs_select_policy ON audit_logs;
+CREATE POLICY audit_logs_select_policy ON audit_logs FOR SELECT
+  USING (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+DROP POLICY IF EXISTS audit_logs_insert_policy ON audit_logs;
+CREATE POLICY audit_logs_insert_policy ON audit_logs FOR INSERT
   WITH CHECK (tenant_id = nullif(current_setting('app.current_tenant_id', true), '')::uuid);
+
+DROP POLICY IF EXISTS audit_logs_update_policy ON audit_logs;
+CREATE POLICY audit_logs_update_policy ON audit_logs FOR UPDATE
+  USING (false);
+
+DROP POLICY IF EXISTS audit_logs_delete_policy ON audit_logs;
+CREATE POLICY audit_logs_delete_policy ON audit_logs FOR DELETE
+  USING (false);
+
+-- 14. Create Non-Bypass Application Role & Grant Privileges
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'erp_app') THEN
+    CREATE ROLE erp_app WITH NOBYPASSRLS;
+  END IF;
+END
+$$;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO erp_app;
 `;
 
 export function splitSql(sqlText: string): string[] {
-  let cleanSql = sqlText.replace(/\/\*[\s\S]*?\*\//g, "");
-  const lines = cleanSql.split("\n");
-  const filteredLines = lines.map(line => {
-    const commentIndex = line.indexOf("--");
-    if (commentIndex !== -1) {
-      return line.slice(0, commentIndex);
-    }
-    return line;
-  });
-  cleanSql = filteredLines.join("\n");
-  const rawStatements = cleanSql.split(";");
   const statements: string[] = [];
-  for (const raw of rawStatements) {
-    const trimmed = raw.trim();
-    if (trimmed) {
-      statements.push(trimmed);
+  let current = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let dollarQuoteTag: string | null = null;
+  let i = 0;
+
+  while (i < sqlText.length) {
+    const char = sqlText[i];
+    const nextChar = sqlText[i + 1] || "";
+
+    // Handle single-line comments --
+    if (!inSingleQuote && !inDoubleQuote && !dollarQuoteTag && char === '-' && nextChar === '-') {
+      while (i < sqlText.length && sqlText[i] !== '\n') {
+        i++;
+      }
+      continue;
     }
+
+    // Handle block comments /* ... */
+    if (!inSingleQuote && !inDoubleQuote && !dollarQuoteTag && char === '/' && nextChar === '*') {
+      i += 2;
+      while (i < sqlText.length && !(sqlText[i] === '*' && sqlText[i + 1] === '/')) {
+        i++;
+      }
+      i += 2;
+      continue;
+    }
+
+    // Handle dollar-quoted strings ($...$)
+    if (!inSingleQuote && !inDoubleQuote) {
+      if (dollarQuoteTag) {
+        if (char === '$') {
+          const substring = sqlText.slice(i, i + dollarQuoteTag.length);
+          if (substring === dollarQuoteTag) {
+            current += dollarQuoteTag;
+            i += dollarQuoteTag.length;
+            dollarQuoteTag = null;
+            continue;
+          }
+        }
+      } else if (char === '$') {
+        const match = sqlText.slice(i).match(/^(\$[a-zA-Z_0-9]*\$)/);
+        if (match) {
+          dollarQuoteTag = match[1];
+          current += dollarQuoteTag;
+          i += dollarQuoteTag.length;
+          continue;
+        }
+      }
+    }
+
+    // Handle single quotes '
+    if (!inDoubleQuote && !dollarQuoteTag && char === "'") {
+      if (sqlText[i - 1] !== "\\") {
+        inSingleQuote = !inSingleQuote;
+      }
+    }
+
+    // Handle double quotes "
+    if (!inSingleQuote && !dollarQuoteTag && char === '"') {
+      if (sqlText[i - 1] !== "\\") {
+        inDoubleQuote = !inDoubleQuote;
+      }
+    }
+
+    // Split on semicolon outside of any quotes or comments
+    if (char === ';' && !inSingleQuote && !inDoubleQuote && !dollarQuoteTag) {
+      const stmt = current.trim();
+      if (stmt) {
+        statements.push(stmt);
+      }
+      current = "";
+    } else {
+      current += char;
+    }
+    i++;
   }
+
+  const lastStmt = current.trim();
+  if (lastStmt) {
+    statements.push(lastStmt);
+  }
+
   return statements;
 }
 
@@ -277,16 +379,31 @@ export async function getMigrationStatus(): Promise<{
   isApplied: boolean;
   version: string;
   checksum: string;
-  status: "applied" | "pending" | "drifted" | "failed";
+  status: "applied" | "pending" | "drifted" | "failed" | "schema_invalid";
   tableCount: number;
 }> {
   const db = getDb();
   const currentChecksum = computeChecksum(PHASE_3_MIGRATION_SQL);
+  const EXPECTED_TABLES = [
+    "schema_migrations",
+    "tenants",
+    "organizations",
+    "legal_entities",
+    "users",
+    "roles",
+    "permissions",
+    "role_permissions",
+    "user_roles",
+    "currencies",
+    "locales",
+    "audit_logs"
+  ];
 
   try {
+    const tableListStr = EXPECTED_TABLES.map(t => `'${t}'`).join(",");
     const tableCheck = await db.execute(`
       SELECT count(*)::int as count FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_name IN ('tenants', 'organizations', 'users', 'roles', 'currencies', 'schema_migrations');
+      WHERE table_schema = 'public' AND table_name IN (${tableListStr});
     `);
     const rows = (tableCheck as any)?.rows || tableCheck || [];
     const tableCount = Number(rows[0]?.count || 0);
@@ -300,7 +417,17 @@ export async function getMigrationStatus(): Promise<{
         isApplied: false,
         version: PHASE_3_MIGRATION_VERSION,
         checksum: currentChecksum,
-        status: tableCount > 0 ? "pending" : "pending",
+        status: "pending",
+        tableCount,
+      };
+    }
+
+    if (applied.status === "failed") {
+      return {
+        isApplied: false,
+        version: PHASE_3_MIGRATION_VERSION,
+        checksum: currentChecksum,
+        status: "failed",
         tableCount,
       };
     }
@@ -315,6 +442,17 @@ export async function getMigrationStatus(): Promise<{
       };
     }
 
+    // If marked as applied but tables are missing
+    if (tableCount < EXPECTED_TABLES.length) {
+      return {
+        isApplied: false,
+        version: PHASE_3_MIGRATION_VERSION,
+        checksum: currentChecksum,
+        status: "schema_invalid",
+        tableCount,
+      };
+    }
+
     return {
       isApplied: true,
       version: PHASE_3_MIGRATION_VERSION,
@@ -322,7 +460,7 @@ export async function getMigrationStatus(): Promise<{
       status: "applied",
       tableCount,
     };
-  } catch {
+  } catch (err) {
     return {
       isApplied: false,
       version: PHASE_3_MIGRATION_VERSION,

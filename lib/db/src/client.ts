@@ -110,18 +110,56 @@ export async function closeDatabase(): Promise<void> {
   activeDb = undefined;
 }
 
+const transactionStorage = new AsyncLocalStorage<any>();
+
+export function getActiveTransaction(): any | undefined {
+  return transactionStorage.getStore();
+}
+
+export class UnitOfWork {
+  async run<T>(callback: (tx: any) => Promise<T>): Promise<T> {
+    const activeTx = getActiveTransaction();
+    if (activeTx) {
+      // Re-use active transaction (nested transaction participation)
+      return await callback(activeTx);
+    }
+
+    return await executeTransaction(async (tx) => {
+      // Apply active tenant context if available
+      const tenantId = getActiveTenantId();
+      if (tenantId) {
+        await tx.execute(sql`SET LOCAL ROLE erp_app`);
+        await tx.execute(sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`);
+      }
+
+      return await transactionStorage.run(tx, async () => {
+        return await callback(tx);
+      });
+    });
+  }
+}
+
 export async function executeTransaction<T>(
   callback: (tx: any) => Promise<T>
 ): Promise<T> {
+  const activeTx = getActiveTransaction();
+  if (activeTx) {
+    return await callback(activeTx);
+  }
+
   const db = getDb();
   if (activeEngine === "pglite" && activePglite) {
     return await activePglite.transaction(async (pgTx: any) => {
       const txDb = drizzlePglite(pgTx, { schema });
-      return await callback(txDb);
+      return await transactionStorage.run(txDb, async () => {
+        return await callback(txDb);
+      });
     });
   }
   return await db.transaction(async (tx: any) => {
-    return await callback(tx);
+    return await transactionStorage.run(tx, async () => {
+      return await callback(tx);
+    });
   });
 }
 
@@ -134,8 +172,8 @@ export async function runInTenantContext<T>(
   }
 
   return await tenantStorage.run(tenantId, async () => {
-    return await executeTransaction(async (tx: any) => {
-      await tx.execute(sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`);
+    const uow = new UnitOfWork();
+    return await uow.run(async (tx) => {
       return await callback(tx);
     });
   });

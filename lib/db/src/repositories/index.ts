@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { eq, and, sql } from "drizzle-orm";
-import { getDb, getActiveTenantId } from "../client.js";
+import { getDb, getActiveTenantId, getActiveTransaction } from "../client.js";
 import {
   tenants,
   organizations,
@@ -27,7 +27,7 @@ async function verifyTenantContext(db: any, tenantId: string) {
 // ============================================================================
 export class TenantRepository {
   async create(data: { name: string; code: string; status?: string }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     const [result] = await db
       .insert(tenants)
       .values({
@@ -40,19 +40,19 @@ export class TenantRepository {
   }
 
   async findById(id: string, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     const [result] = await db.select().from(tenants).where(eq(tenants.id, id));
     return result || null;
   }
 
   async findByCode(code: string, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     const [result] = await db.select().from(tenants).where(eq(tenants.code, code));
     return result || null;
   }
 
   async list(dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     return await db.select().from(tenants);
   }
 }
@@ -62,7 +62,7 @@ export class TenantRepository {
 // ============================================================================
 export class OrganizationRepository {
   async create(data: { tenantId: string; name: string; code: string }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, data.tenantId);
     const [result] = await db
       .insert(organizations)
@@ -76,7 +76,7 @@ export class OrganizationRepository {
   }
 
   async listByTenant(tenantId: string, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, tenantId);
     return await db
       .select()
@@ -90,7 +90,7 @@ export class OrganizationRepository {
 // ============================================================================
 export class UserRepository {
   async create(data: { tenantId: string; email: string; fullName: string; status?: string }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, data.tenantId);
     const [result] = await db
       .insert(users)
@@ -105,13 +105,13 @@ export class UserRepository {
   }
 
   async listByTenant(tenantId: string, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, tenantId);
     return await db.select().from(users).where(eq(users.tenantId, tenantId));
   }
 
   async findByEmail(tenantId: string, email: string, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, tenantId);
     const [result] = await db
       .select()
@@ -126,7 +126,7 @@ export class UserRepository {
 // ============================================================================
 export class RolePermissionRepository {
   async createRole(data: { tenantId: string; name: string; description?: string; isSystem?: boolean }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, data.tenantId);
     const [result] = await db
       .insert(roles)
@@ -141,7 +141,7 @@ export class RolePermissionRepository {
   }
 
   async createPermission(data: { code: string; name: string; module: string; description?: string }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     const [result] = await db
       .insert(permissions)
       .values({
@@ -155,7 +155,7 @@ export class RolePermissionRepository {
   }
 
   async assignPermissionToRole(data: { tenantId: string; roleId: string; permissionId: string }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, data.tenantId);
     await db.insert(rolePermissions).values({
       tenantId: data.tenantId,
@@ -165,7 +165,7 @@ export class RolePermissionRepository {
   }
 
   async assignRoleToUser(data: { tenantId: string; userId: string; roleId: string }, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, data.tenantId);
     await db.insert(userRoles).values({
       tenantId: data.tenantId,
@@ -175,7 +175,7 @@ export class RolePermissionRepository {
   }
 
   async getUserPermissions(tenantId: string, userId: string, dbCtx?: any): Promise<string[]> {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, tenantId);
     const assignedUserRoles = await db
       .select()
@@ -210,7 +210,7 @@ export class RolePermissionRepository {
 // ============================================================================
 export class CurrencyRepository {
   async seedDefaults(dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     const defaultCurrencies = [
       { code: "USD", name: "US Dollar", symbol: "$", decimalPlaces: 2, isActive: true },
       { code: "EUR", name: "Euro", symbol: "€", decimalPlaces: 2, isActive: true },
@@ -224,7 +224,7 @@ export class CurrencyRepository {
   }
 
   async listActive(dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     return await db.select().from(currencies).where(eq(currencies.isActive, true));
   }
 }
@@ -244,18 +244,20 @@ export class AuditLogRepository {
     },
     dbCtx?: any
   ) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, data.tenantId);
 
     // Fetch previous hash for tenant chain
     const tenantLogs = await db
       .select()
       .from(auditLogs)
-      .where(eq(auditLogs.tenantId, data.tenantId));
+      .where(eq(auditLogs.tenantId, data.tenantId))
+      .orderBy(auditLogs.createdAt);
 
     const prevHash = tenantLogs.length > 0 ? tenantLogs[tenantLogs.length - 1].hash : "00000000000000000000000000000000";
 
-    const timestamp = new Date().toISOString();
+    const createdAt = new Date();
+    const timestamp = createdAt.toISOString();
     const payloadStr = JSON.stringify(data.payload || {});
     const hashData = `${prevHash}:${timestamp}:${data.tenantId}:${data.actorId || "system"}:${data.action}:${data.entityType}:${data.entityId}:${payloadStr}`;
     const hash = crypto.createHash("sha256").update(hashData).digest("hex");
@@ -271,6 +273,7 @@ export class AuditLogRepository {
         payload: data.payload || {},
         prevHash,
         hash,
+        createdAt,
       })
       .returning();
 
@@ -278,8 +281,54 @@ export class AuditLogRepository {
   }
 
   async listByTenant(tenantId: string, dbCtx?: any) {
-    const db = dbCtx || getDb();
+    const db = dbCtx || getActiveTransaction() || getDb();
     await verifyTenantContext(db, tenantId);
-    return await db.select().from(auditLogs).where(eq(auditLogs.tenantId, tenantId));
+    return await db.select().from(auditLogs).where(eq(auditLogs.tenantId, tenantId)).orderBy(auditLogs.createdAt);
+  }
+
+  async verifyTenantChain(tenantId: string, dbCtx?: any): Promise<{
+    valid: boolean;
+    reason?: string;
+  }> {
+    const db = dbCtx || getActiveTransaction() || getDb();
+    await verifyTenantContext(db, tenantId);
+
+    const logs = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.tenantId, tenantId))
+      .orderBy(auditLogs.createdAt);
+
+    let expectedPrevHash = "00000000000000000000000000000000";
+
+    for (let i = 0; i < logs.length; i++) {
+      const log = logs[i];
+
+      // 1. Detect changed previous hash
+      if (log.prevHash !== expectedPrevHash) {
+        return {
+          valid: false,
+          reason: `Chain broken at index ${i} (ID: ${log.id}): expected prevHash '${expectedPrevHash}', found '${log.prevHash}'`,
+        };
+      }
+
+      // 2. Re-compute hash and check integrity of fields
+      const timestampStr = log.createdAt instanceof Date ? log.createdAt.toISOString() : new Date(log.createdAt).toISOString();
+      const payloadStr = JSON.stringify(log.payload || {});
+      const hashData = `${log.prevHash}:${timestampStr}:${log.tenantId}:${log.actorId || "system"}:${log.action}:${log.entityType}:${log.entityId}:${payloadStr}`;
+      const recomputedHash = crypto.createHash("sha256").update(hashData).digest("hex");
+
+      // 3. Detect altered hash or payload tampering
+      if (log.hash !== recomputedHash) {
+        return {
+          valid: false,
+          reason: `Hash mismatch at index ${i} (ID: ${log.id}): recomputed hash '${recomputedHash}' does not match stored hash '${log.hash}'`,
+        };
+      }
+
+      expectedPrevHash = log.hash;
+    }
+
+    return { valid: true };
   }
 }
