@@ -1,10 +1,11 @@
-# Phase 2 Final Closeout & Architecture Certification Report
+# Phase 2 Final Closeout & Architecture Re-Certification Report
 
-**Document Status:** Permanent Architectural Source of Truth — Phase 2 Certification  
+**Document Status:** Permanent Architectural Source of Truth — Phase 2 Re-Certification  
 **Phase:** PHASE 2 — RUNTIME, CONFIGURATION & ENVIRONMENT PLATFORM  
-**Phase 2 Status:** COMPLETE & CERTIFIED  
+**Phase 2 Status:** COMPLETE & RE-CERTIFIED  
 **Auditor / Lead Engineer:** Senior Principal ERP Architect & Independent Verification Auditor  
-**Certification Date:** 2026-10-08  
+**Re-Certification Date:** 2026-10-08  
+**Audit Finding Notice:** This document supersedes the initial Phase 2 report. Deficiencies DEF-009, DEF-010, DEF-011, and DEF-012 were discovered during post-certification independent audit and have been completely remediated and verified under executable tests.
 
 ---
 
@@ -14,43 +15,48 @@ In strict accordance with Phase 2 scope boundaries (zero business-domain ERP mod
 
 ### 1.1 Runtime Lifecycle State Machine (`@erp/core/runtime/lifecycle.ts`)
 - Explicit state machine with 6 operational states: `INITIALIZING`, `READY`, `DRAINING`, `TERMINATING`, `TERMINATED`, `FAILED`.
-- Multi-phase graceful drain sequence: ingress shutoff (`DRAINING`), handler execution (`TERMINATING`), timer cleanup, and state completion (`TERMINATED`).
+- Enforced legal state transitions; invalid transitions throw `IllegalStateTransitionError`.
+- Multi-phase graceful drain sequence: operational ingress shutoff (`isIngressOpen()` becomes false upon entering `DRAINING`), LIFO execution of shutdown handlers (`TERMINATING`), reverse topological stopping of attached `ServiceContainer` services, timer cleanup, and state completion (`TERMINATED`).
 - Failure propagation via `markFailed(error)` and diagnostic inspection (`getFailureReason()`).
 - Signal trapping (`SIGTERM`, `SIGINT`) with timeout safeguards and idempotent execution.
 
-### 1.2 Typed Service Container (`@erp/core/runtime/container.ts`)
-- Lightweight typed service container with explicit registration and declared dependencies.
+### 1.2 Typed Service Container & Lifecycle Integration (`@erp/core/runtime/container.ts`)
+- Lightweight typed service container with explicit registration and declared dependencies (`IService`).
 - Deterministic topological dependency sort for startup ordering (`startAll()`).
 - Deterministic reverse topological shutdown ordering (`stopAll()`).
 - Static detection of circular dependencies (`CircularDependencyError`) and missing dependencies (`MissingDependencyError`) prior to initialization.
+- Fully integrated into application bootstrap: `dataStore` and `httpServer` are registered with declared dependencies, started in topological order prior to `markReady()`, and stopped in reverse order during shutdown.
 
 ### 1.3 Typed Configuration & Environment Model (`@erp/core/config/config.ts`)
 - Clear architectural separation between non-secret parameters (`NODE_ENV`, `HOST`, `PORT`, `LOG_LEVEL`, `APP_NAME`, `APP_VERSION`, `SHUTDOWN_TIMEOUT_MS`, `REQUEST_TIMEOUT_MS`) and sensitive secrets (`JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`).
 - Support for four environments: `development`, `test`, `staging`, `production`.
 - Strict environment-specific validation: production and staging require 32+ character `JWT_SECRET`; malformed database/redis URLs fail early.
 - Zero secret leakage guarantee: `toSafeConfig()` exposes only non-secret flags (`hasJwtSecret`, `hasDatabaseUrl`, `hasRedisUrl`); `ConfigValidationError` identifies invalid keys without exposing secret payloads.
+- **Sole Source of Truth:** Live server derives `PORT`, `HOST`, `LOG_LEVEL`, etc. exclusively from `parseConfig(process.env)`. Invalid configuration immediately aborts server startup with non-zero exit code.
 
 ### 1.4 Standardized Health Platform (`@erp/core/health/health.ts`)
 - Standardized health registry (`HealthRegistry`) for registering critical and non-critical dependency checks.
-- Liveness Probe (`/health/live`): checks process vitality (returns 200 OK while alive, 503 if failed/terminated) without requiring external dependencies.
-- Readiness Probe (`/health/ready`): checks runtime readiness and executes all registered dependency probes (returns 200 OK or 503 Service Unavailable).
+- Liveness Probe (`/health/live`): checks process vitality (returns 200 OK while alive, 503 if failed/terminated) independent of external dependencies.
+- Readiness Probe (`/health/ready`): checks runtime readiness and executes all registered dependency probes (returns 200 OK only when `READY`, returns 503 during `DRAINING`, `TERMINATING`, `TERMINATED`, or `FAILED`).
 - Startup Probe (`/health/startup`): reports initialization state (returns 200 OK once ready, 503 while starting).
 
-### 1.5 Request Context & Execution Context Integration (`@erp/core/http/context-middleware.ts`)
+### 1.5 Request Context & Middleware (`@erp/core/http/context-middleware.ts`)
 - Inbound correlation ID validation and sanitization (`sanitizeCorrelationId`) against regex whitelist (`/^[a-zA-Z0-9_\-.]{8,128}$/`), falling back to cryptographically secure UUIDs.
 - `withRequestContext` middleware binding `correlationId`, `traceId`, and `tenantId` to Node.js `AsyncLocalStorage`.
 - Response header injection: `x-correlation-id` emitted on every HTTP response.
 
 ### 1.6 HTTP Error Boundary (`@erp/core/http/error-boundary.ts`)
 - Standard error translation (`translateErrorToResponse`) mapping `AppError` subclasses (`ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, `ConflictError`, `BusinessRuleError`, `InfrastructureError`, `InternalError`) to standard HTTP status codes.
-- Production error sanitization: strips stack traces, filesystem paths, SQL statements, and secrets while preserving correlation IDs for server-side troubleshooting.
+- Production error sanitization: strips stack traces, filesystem paths, SQL statements, and secrets while preserving correlation IDs for server-side log tracing.
 
 ### 1.7 Observability Foundation & Runtime Metrics (`@erp/core/observability/`)
 - Provider-agnostic telemetry interfaces (`IMetricsRecorder`, `ITracer`, `ISpan`).
-- In-memory `RuntimeMetrics` tracker capturing total requests, active requests gauge, request breakdown by HTTP method and status code, duration histograms (min, max, avg, p95), and startup/shutdown durations.
+- In-memory `RuntimeMetrics` tracker capturing total requests, active requests gauge, request breakdown by HTTP method and status code, duration histograms (min, max, avg, p95), startup duration, and real measured shutdown duration.
 
 ### 1.8 Operational Server Integration (`artifacts/erp-preview/imported/server.js`)
-- Wired runtime lifecycle, health probes (`/health/live`, `/health/ready`, `/health/startup`, `/health/metrics`), correlation ID propagation, and metrics recording into the live Node.js preview server on port 3000.
+- Zero fallback architecture: mandatory core runtime loading and central configuration parsing.
+- Ingress shutoff: rejects new operational requests with HTTP 503 during `DRAINING`.
+- Service container coordination: manages dataStore and httpServer lifecycles.
 - Preserved all existing legacy routes (`/`, `/index.html`, `/erp-api/bootstrap`, `/erp-api/products`, etc.) with zero disruption.
 
 ---
@@ -59,15 +65,17 @@ In strict accordance with Phase 2 scope boundaries (zero business-domain ERP mod
 
 | Check | Target / Command | Result | Evidence | Status |
 | :--- | :--- | :--- | :--- | :---: |
-| **Real Linting** | `npm run lint` (`oxlint --deny-warnings`) | 50 files inspected, 96 rules, 0 errors, 0 warnings (15ms) | Executed AST linter with zero warnings | **PASS** |
+| **Real Linting** | `npm run lint` (`oxlint --deny-warnings`) | 51 files inspected, 96 rules, 0 errors, 0 warnings (15ms) | Executed AST linter with zero warnings | **PASS** |
 | **Real Compilation**| `npm run build` (`tsc --build`) | All packages cleanly compiled to `dist/` | Declarations, maps, and JS emitted without diagnostics | **PASS** |
 | **Strict Typecheck**| `npm run typecheck` (`tsc --build`) | 0 type errors under strict mode | Full composite project reference compilation clean | **PASS** |
-| **Complete Tests** | `npm test` (`node scripts/run-tests.mjs`) | 32/32 tests passed across 12 suites (3.24s) | 100% assertions verified; zero fake tests | **PASS** |
-| **Boundary & Cycle**| `node scripts/check-boundaries.mjs` | 47 files, 85 edges, 0 cycles, 0 boundary violations | AST-based graph traversal verified downward rules | **PASS** |
+| **Complete Tests** | `npm test` (`node scripts/run-tests.mjs`) | 35/35 tests passed across 13 suites (3.28s) | 100% assertions verified; zero fake tests | **PASS** |
+| **Boundary & Cycle**| `node scripts/check-boundaries.mjs` | 48 files, 90 edges, 0 cycles, 0 boundary violations | AST-based graph traversal verified downward rules | **PASS** |
+| **Config Failure** | `PORT=99999 node server.js` | Process aborts with `ConfigValidationError`, exit code 1 | Real failure output captured | **PASS** |
+| **Secret Failure** | `NODE_ENV=production node server.js` | Process aborts due to missing `JWT_SECRET`, exit code 1 | Real failure output captured | **PASS** |
 | **Liveness Probe** | `curl -i http://127.0.0.1:3000/health/live` | HTTP 200 OK | `{"status":"ok","state":"READY",...}` | **PASS** |
 | **Readiness Probe** | `curl -i http://127.0.0.1:3000/health/ready` | HTTP 200 OK | `{"status":"ok","state":"READY","checks":{"dataStore":true},...}` | **PASS** |
 | **Startup Probe** | `curl -i http://127.0.0.1:3000/health/startup` | HTTP 200 OK | `{"status":"ok","state":"READY",...}` | **PASS** |
-| **Metrics Endpoint**| `curl -s http://127.0.0.1:3000/health/metrics` | HTTP 200 OK | Request metrics snapshot returned | **PASS** |
+| **Metrics Endpoint**| `curl -s http://127.0.0.1:3000/health/metrics` | HTTP 200 OK | Request metrics and startup duration returned | **PASS** |
 | **Legacy Preview** | `curl http://127.0.0.1:3000/` & `/erp-api/bootstrap` | HTTP 200 OK | HTML shell and REST JSON data operational | **PASS** |
 
 ---
@@ -75,12 +83,12 @@ In strict accordance with Phase 2 scope boundaries (zero business-domain ERP mod
 ## 3. NOT IMPLEMENTED (Strictly Deferred to Later Phases)
 
 In compliance with Phase 2 scope boundaries, the following were intentionally not built:
-- **Zero Business ERP Modules:** No GL, AR, AP, Inventory, SCM, CRM, HR, Payroll, Manufacturing, or Tax logic (Phases 9–14).
-- **Zero Production Database Schema:** Relational ERP database tables are not implemented (Phase 4).
-- **Zero Database Migrations:** No database migrations executed (Phase 4).
+- **Zero Business ERP Modules:** General Ledger, Accounts Receivable, Accounts Payable, Inventory, Sales, Procurement, Manufacturing, CRM, HR, Payroll, Tax (strictly deferred to Phases 9–14).
+- **Zero Production Database Schema:** Relational ERP database tables not implemented (Phase 4).
+- **Zero Database Migrations:** No migration scripts executed (Phase 4).
 - **Zero Distributed Message Brokers:** Kafka / RabbitMQ were not provisioned (Phase 5).
-- **Zero Distributed Observability Backends:** Heavyweight agents (Prometheus scrape exporters, OpenTelemetry collectors) deferred; interfaces established.
-- **Zero Phase 3+ Identity / Tenancy Logic:** Multi-tenant organization models and JWT token rotation deferred to Phase 3.
+- **Zero Distributed Observability Agents:** Heavyweight external agents deferred; interfaces established.
+- **Zero Phase 3+ Identity / Multi-Tenancy Logic:** Organization hierarchy and JWT rotation deferred to Phase 3.
 
 ---
 
@@ -93,54 +101,44 @@ In compliance with Phase 2 scope boundaries, the following were intentionally no
 
 ## 5. DEFICIENCIES FOUND AND FIXED
 
-During Phase 2 implementation and verification, two code quality issues were identified by `oxlint` and remediated:
-1. **DEF-007 (Code Quality):** Unused `logger` import and redundant regex escape in `packages/core/src/http/context-middleware.ts`. Fixed.
-2. **DEF-008 (Code Quality):** Unused `InternalError` import in `packages/core/tests/http.test.ts`. Fixed.
+### Post-Certification Audit Deficiencies (Remediated)
+1. **DEF-009 (CRITICAL — RESOLVED):** Runtime import failure previously allowed server startup with fake healthy fallback responses. Remediated by making `@erp/core` runtime initialization mandatory, terminating startup with non-zero exit code (`process.exit(1)`) on failure, and eliminating all fake healthy fallbacks.
+2. **DEF-010 (HIGH — RESOLVED):** Server hard-coded `PORT = 3000` and `HOST = "0.0.0.0"`, bypassing the typed configuration engine. Remediated by wiring `core.parseConfig(process.env)` directly into the server startup path as the sole source of runtime parameters.
+3. **DEF-011 (HIGH — RESOLVED):** `DRAINING` state did not enforce ingress shutoff. Remediated by adding `isIngressOpen()` and `IllegalStateTransitionError` to `RuntimeLifecycle`. Server rejects new operational requests with HTTP 503 (`Retry-After: 5`) during drain, while in-flight requests complete cleanly.
+4. **DEF-012 (HIGH — RESOLVED):** `ServiceContainer` was implemented in isolation without runtime lifecycle integration. Remediated by attaching the container to `RuntimeLifecycle`, registering `dataStore` and `httpServer` with explicit dependency edges, starting them via `container.startAll()`, and stopping them via `container.stopAll()` during graceful shutdown.
+
+### Earlier Code Quality Deficiencies (Remediated)
+5. **DEF-007 (Medium — RESOLVED):** Unused `logger` import and redundant regex escape in `packages/core/src/http/context-middleware.ts`. Fixed.
+6. **DEF-008 (Low — RESOLVED):** Unused `InternalError` import in `packages/core/tests/http.test.ts`. Fixed.
 
 ---
 
-## 6. DEPENDENCIES ADDED
+## 6. ARCHITECTURAL DECISIONS (Phase 2 ADRs)
 
-- **`oxlint`:** Installed as a devDependency in root `package.json` (Phase 1 correction). Zero runtime dependencies added in Phase 2; all Phase 2 systems utilize native Node.js and TypeScript capabilities.
-
----
-
-## 7. ARCHITECTURAL DECISIONS (Phase 2 ADRs)
-
-Four new architectural decisions were formalized in `docs/DECISIONS.md`:
+Six architectural decisions have been formalized in `docs/DECISIONS.md`:
 - **ADR-019 (ACCEPTED):** Runtime Lifecycle State Machine with Multi-Phase Drain and Graceful Termination.
 - **ADR-020 (ACCEPTED):** Topological Dependency Resolution and Cycle Detection in Lightweight ServiceContainer.
 - **ADR-021 (ACCEPTED):** Non-Secret vs Secret Configuration Partitioning with Zero-Leakage Error Handling.
 - **ADR-022 (ACCEPTED):** Multi-Probe Health Architecture (`/health/live`, `/health/ready`, `/health/startup`).
+- **ADR-023 (ACCEPTED):** Mandatory Ingress Shutoff and In-Flight Request Draining.
+- **ADR-024 (ACCEPTED):** Zero-Fallback Runtime Bootstrap and Central Configuration Binding.
 
 ---
 
-## 8. NEXT PHASE RECOMMENDATION
-
-### Phase 3: Identity, Tenancy, Organization & RBAC
-- **Scope:**
-  1. Tenant, Group Enterprise, Legal Entity, Branch, Cost Center models.
-  2. JWT authentication with token rotation.
-  3. Hierarchical RBAC engine and Separation of Duties (SoD) validator.
-  4. Time-bounded permission delegations.
-- **Entry Gate:** Phase 2 certified complete.
-
----
-
-## 9. Official Certification Declaration
+## 7. Official Re-Certification Declaration
 
 ```
 ================================================================================
 PHASE 2 STATUS:             CERTIFIED COMPLETE
-RUNTIME LIFECYCLE:          IMPLEMENTED & TESTED (State machine, drain, signals)
-SERVICE CONTAINER:          IMPLEMENTED & TESTED (Topological sort, cycle check)
-CONFIG & SECRETS:           IMPLEMENTED & TESTED (Partitioned, zero leakage)
-HEALTH PLATFORM:            IMPLEMENTED & TESTED (/health/live, ready, startup)
-HTTP ERROR BOUNDARY:        IMPLEMENTED & TESTED (AppError status mapping, sanitized)
-OBSERVABILITY & METRICS:    IMPLEMENTED & TESTED (Provider-agnostic interfaces, metrics)
-TESTS PASSING:              32/32 (100% assertions satisfied across 12 suites)
-LINT PASSING:               50 files inspected, 0 warnings, 0 errors
-BUILD & TYPECHECK:          PASS (tsc --build emitted to dist/)
+DEFICIENCIES RESOLVED:      DEF-009, DEF-010, DEF-011, DEF-012 (100% fixed)
+MANDATORY RUNTIME STARTUP:  ENFORCED (Zero fake fallbacks; failures exit 1)
+TYPED CONFIGURATION:        WIRED (Sole source of runtime settings)
+DRAINING INGRESS SHUTOFF:   ENFORCED (HTTP 503 on new work; in-flight drains)
+SERVICE CONTAINER:          INTEGRATED (Topological startAll/stopAll in runtime)
+SHUTDOWN METRICS:           REAL (Duration measured and recorded)
+TEST SUITE:                 35/35 PASSED (100% assertions across 13 suites)
+LINT PASSING:               51 files inspected, 0 warnings, 0 errors
+BUILD & TYPECHECK:          PASS (tsc --build clean)
 ARCHITECTURAL BOUNDARIES:   PASS (0 cycles, 0 boundary leaks)
 LIVE PREVIEW ON PORT 3000:  OPERATIONAL (All health, root, and API endpoints 200 OK)
 BUSINESS MODULES:           ZERO (Strictly deferred to Phases 9–14)

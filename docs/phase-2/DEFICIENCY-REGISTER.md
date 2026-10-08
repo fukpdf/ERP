@@ -1,6 +1,6 @@
 # Phase 2 Deficiency Register
 
-**Document Status:** Permanent Engineering Issue Tracker — Phase 2 Certification  
+**Document Status:** Permanent Engineering Issue Tracker — Phase 2 Re-Certification  
 **Classification Standards:** Critical, High, Medium, Low, Informational  
 **Resolution Rule:** No Critical or High Phase 2 issue may remain unresolved before phase certification.
 
@@ -12,6 +12,10 @@
 | :-: | :---: | :---: | :--- | :--- | :---: |
 | **DEF-007** | *Medium* | *Code Quality* | Unused `logger` import and redundant regex escape in correlation sanitizer | `packages/core/src/http/context-middleware.ts` | **RESOLVED** |
 | **DEF-008** | *Low* | *Code Quality* | Unused `InternalError` import in test suite | `packages/core/tests/http.test.ts` | **RESOLVED** |
+| **DEF-009** | **CRITICAL** | *Runtime / Resilience* | Runtime import failure allowed server startup and served fake healthy fallback responses | `artifacts/erp-preview/imported/server.js` | **RESOLVED** |
+| **DEF-010** | **High** | *Configuration* | Typed configuration was not used by live server; server hard-coded PORT and HOST | `artifacts/erp-preview/imported/server.js` | **RESOLVED** |
+| **DEF-011** | **High** | *Runtime / Draining* | DRAINING state did not enforce ingress shutoff; operational requests continued normally | `packages/core/src/runtime/lifecycle.ts`, `server.js` | **RESOLVED** |
+| **DEF-012** | **High** | *Architecture* | ServiceContainer was implemented but not integrated into application runtime bootstrap | `packages/core/src/runtime/lifecycle.ts`, `server.js` | **RESOLVED** |
 
 ---
 
@@ -29,4 +33,32 @@
 - **Root Cause:** In `packages/core/tests/http.test.ts`, `InternalError` was imported from `dist/index.js` but the test utilized generic `Error` instances to verify unexpected internal exception sanitization.
 - **Affected Files:** `packages/core/tests/http.test.ts`.
 - **Resolution / Fix:** Removed unused import. Verified clean with `oxlint --deny-warnings`.
+- **Status:** RESOLVED
+
+### DEF-009: Runtime Import Failure Allowed Server Startup with Fake Healthy Fallbacks
+- **Severity:** CRITICAL
+- **Root Cause:** In `artifacts/erp-preview/imported/server.js`, dynamic import of `@erp/core` was wrapped in a `try/catch` block that logged a warning and continued starting the HTTP server, and provided fallback health responses returning HTTP 200 without the Phase 2 runtime.
+- **Affected Files:** `artifacts/erp-preview/imported/server.js`.
+- **Resolution / Fix:** Removed all fallback behavior. If `@erp/core` fails to import, or if configuration validation fails, startup aborts immediately with `process.exit(1)` and marks the runtime `FAILED`. Fake healthy fallback endpoints were eliminated entirely.
+- **Status:** RESOLVED
+
+### DEF-010: Typed Configuration Was Not Used by the Live Runtime Server
+- **Severity:** High
+- **Root Cause:** `packages/core/src/config/config.ts` provided `parseConfig()`, but `artifacts/erp-preview/imported/server.js` hard-coded `PORT = 3000` and `HOST = "0.0.0.0"`.
+- **Affected Files:** `artifacts/erp-preview/imported/server.js`.
+- **Resolution / Fix:** Removed hard-coded constants. Server now derives `port`, `host`, `env`, `appVersion`, and timeouts directly from `core.parseConfig(process.env)`. Invalid configuration (such as invalid `PORT` or missing production `JWT_SECRET`) halts startup with a non-zero exit code.
+- **Status:** RESOLVED
+
+### DEF-011: DRAINING State Did Not Enforce Ingress Shutoff
+- **Severity:** High
+- **Root Cause:** `RuntimeLifecycle.shutdown()` transitioned to `DRAINING`, but the HTTP server did not inspect the runtime lifecycle state prior to dispatching new operational requests.
+- **Affected Files:** `packages/core/src/runtime/lifecycle.ts`, `artifacts/erp-preview/imported/server.js`.
+- **Resolution / Fix:** Implemented `isIngressOpen()` on `RuntimeLifecycle` (returns true ONLY when `state === 'READY'`). In `server.js`, incoming requests verify `isIngressOpen()`. If not open, new operational requests return HTTP 503 (`Retry-After: 5`, `Connection: close`), while `/health/live` remains 200 and `/health/ready` returns 503. In-flight requests drain cleanly.
+- **Status:** RESOLVED
+
+### DEF-012: ServiceContainer Implemented But Not Integrated into Runtime Bootstrap
+- **Severity:** High
+- **Root Cause:** `ServiceContainer` was implemented in `@erp/core/runtime/container.ts` with topological sorting and cycle checks, but the application runtime bootstrap did not use it as the service lifecycle manager.
+- **Affected Files:** `packages/core/src/runtime/lifecycle.ts`, `artifacts/erp-preview/imported/server.js`.
+- **Resolution / Fix:** Attached `ServiceContainer` to `RuntimeLifecycle` via `attachContainer()`. Registered `dataStore` and `httpServer` with explicit dependency edges (`httpServer` depends on `dataStore`). Startup invokes `container.startAll()` in topological order before `markReady()`. Shutdown invokes `container.stopAll()` in reverse order (`httpServer` stops before `dataStore` closes queues).
 - **Status:** RESOLVED

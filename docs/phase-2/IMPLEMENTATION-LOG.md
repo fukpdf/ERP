@@ -1,6 +1,6 @@
 # Phase 2 Implementation Log
 
-**Document Status:** Permanent Engineering Activity Record — Phase 2 Certification  
+**Document Status:** Permanent Engineering Activity Record — Phase 2 Re-Certification  
 **Phase:** Runtime, Configuration & Environment Platform  
 **Engineering Discipline:** AUDIT → IMPLEMENT → VALIDATE → VERIFY → RE-AUDIT → FIX → VERIFY AGAIN
 
@@ -26,8 +26,14 @@
 - **HTTP Error Boundary (`@erp/core/http/error-boundary.ts`):** Implemented `translateErrorToResponse` and `sendHttpErrorResponse` mapping `AppError` subclasses to status codes and sanitizing internal errors in production to eliminate stack trace or credential leakage.
 - **Observability Interfaces & Metrics (`@erp/core/observability/`):** Created provider-agnostic `IMetricsRecorder` and `ITracer` interfaces, and in-memory `RuntimeMetrics` recording request count, durations, active requests gauge, and lifecycle durations.
 
-### Session 5: Live Server Integration & Testing
+### Session 5: Initial Live Server Integration & Testing
 - **Preview Integration:** Wired Phase 2 health probes (`/health/live`, `/health/ready`, `/health/startup`, `/health/metrics`), correlation ID header propagation, and runtime metrics into `artifacts/erp-preview/imported/server.js`.
-- **Test Suite Expansion:** Authored real unit tests covering `ServiceContainer`, `HealthPlatform`, `HTTP Layer & Error Boundary`, `RuntimeMetrics`, and expanded `Config` and `RuntimeLifecycle` tests. Test count increased from 16 to 32 tests across 12 suites.
-- **Defect Remediation:** Resolved DEF-007 (unused import/regex escape) and DEF-008 (unused test import) identified via `oxlint`.
-- **Verification Pipeline:** Successfully executed `npm run lint`, `npm run build`, `npm run typecheck`, `npm test`, `node scripts/check-boundaries.mjs`, and curl verification on port 3000.
+- **Test Suite Expansion:** Authored real unit tests covering `ServiceContainer`, `HealthPlatform`, `HTTP Layer & Error Boundary`, `RuntimeMetrics`, and expanded `Config` and `RuntimeLifecycle` tests.
+
+### Session 6: Independent Audit Remediation (DEF-009 through DEF-012)
+- **DEF-009 Remediation:** Removed fallback `try/catch` and fake healthy responses in `server.js`. Mandatory core loading failure or configuration failure terminates startup immediately with non-zero exit code.
+- **DEF-010 Remediation:** Wired `core.parseConfig(process.env)` directly into the server startup path. Eliminated hard-coded `PORT` and `HOST`. Verified startup failure on invalid port (`PORT=99999`) and missing production secrets (`NODE_ENV=production`).
+- **DEF-011 Remediation:** Implemented `isIngressOpen()` and legal state machine transitions (`IllegalStateTransitionError`). Server returns HTTP 503 (`Retry-After: 5`) during `DRAINING`, while `/health/live` remains 200 and `/health/ready` returns 503.
+- **DEF-012 Remediation:** Integrated `ServiceContainer` into `RuntimeLifecycle` and server startup. Registered `dataStore` and `httpServer` with explicit dependency ordering. Verified `container.startAll()` at startup and `container.stopAll()` during shutdown.
+- **Integration Test Suite:** Added `packages/core/tests/runtime-integration.test.ts`. Total tests increased to 35 across 13 suites. All tests passing (35/35).
+- **Verification Pipeline:** Successfully re-executed `npm run lint`, `npm run build`, `npm run typecheck`, `npm test`, `node scripts/check-boundaries.mjs`, failure tests, and live server curl validation on port 3000.

@@ -227,5 +227,22 @@
 - **Status:** ACCEPTED
 - **Decision:** Implement standardized HTTP health endpoints: `/health/live` (process vitality), `/health/ready` (operational capacity with component check registry), and `/health/startup` (bootstrap state).
 - **Reason:** Complies with modern enterprise orchestration standards (Kubernetes, GCP Cloud Run, AWS ECS). Decouples basic process liveness from external dependency readiness to prevent cascading pod restart storms during transient database blips.
-- **Alternatives Considered:** Single `/health` endpoint: Rejected because restart probes would prematurely kill healthy application pods during temporary downstream dependency latency.
 - **Impact:** Orchestration platforms consume standardized 200/503 health signals.
+
+---
+
+### ADR-023: Mandatory Ingress Shutoff and In-Flight Request Draining {#adr-023}
+- **Status:** ACCEPTED
+- **Decision:** Mandate that the HTTP ingress layer inspects `RuntimeLifecycle.isIngressOpen()` on every incoming request. During `DRAINING`, `TERMINATING`, `TERMINATED`, or `FAILED` states, all new operational requests are rejected immediately with HTTP 503 (`Retry-After: 5`, `Connection: close`), while existing in-flight workloads complete.
+- **Reason:** Remediated DEF-011. Eliminates race conditions during scaling events or redeployments where terminating pods continue accepting new requests, resulting in dropped database transactions.
+- **Alternatives Considered:** Abrupt socket termination (`server.destroy()`): Rejected due to data loss on in-flight requests.
+- **Impact:** Load balancers seamlessly re-route new traffic as soon as readiness drops to 503, and active work finishes gracefully.
+
+---
+
+### ADR-024: Zero-Fallback Runtime Bootstrap and Central Configuration Binding {#adr-024}
+- **Status:** ACCEPTED
+- **Decision:** Remove all fake fallbacks and require that `@erp/core` runtime modules and typed `parseConfig(process.env)` are mandatory prerequisites for server startup.
+- **Reason:** Remediated DEF-009 and DEF-010. If the runtime cannot initialize or configuration is invalid, the process MUST fail fast with non-zero exit code (`process.exit(1)`) rather than running in a broken or fake-healthy degraded state.
+- **Alternatives Considered:** Graceful fallback to in-memory defaults: Rejected because silent fallbacks mask severe configuration and environment defects in staging/production.
+- **Impact:** Failures in configuration or core runtime are detected immediately at container launch.

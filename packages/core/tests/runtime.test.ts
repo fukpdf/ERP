@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { RuntimeLifecycle } from '../dist/index.js';
+import { RuntimeLifecycle, IllegalStateTransitionError } from '../dist/index.js';
 
 describe('RuntimeLifecycle Engine', () => {
   it('manages initialization, readiness, and health probes', async () => {
@@ -32,7 +32,13 @@ describe('RuntimeLifecycle Engine', () => {
     assert.equal(lifecycle.getFailureReason(), startupErr);
 
     // Cannot transition to READY from FAILED
-    assert.throws(() => lifecycle.markReady(), /Cannot mark runtime READY from state: FAILED/);
+    assert.throws(
+      () => lifecycle.markReady(),
+      (err: Error) => {
+        assert.ok(err instanceof IllegalStateTransitionError);
+        return true;
+      },
+    );
   });
 
   it('executes shutdown handlers in reverse order during termination', async () => {

@@ -1,4 +1,6 @@
 import { logger } from '../logging/logger.js';
+import { runtimeMetrics } from '../observability/metrics.js';
+import type { ServiceContainer } from './container.js';
 
 export type RuntimeState =
   | 'INITIALIZING'
@@ -20,6 +22,13 @@ export interface HealthCheckResult {
 export type ShutdownHandler = () => Promise<void> | void;
 export type HealthCheck = () => Promise<boolean> | boolean;
 
+export class IllegalStateTransitionError extends Error {
+  constructor(from: RuntimeState, to: RuntimeState) {
+    super(`Illegal runtime lifecycle state transition from "${from}" to "${to}".`);
+    this.name = 'IllegalStateTransitionError';
+  }
+}
+
 export class RuntimeLifecycle {
   private state: RuntimeState = 'INITIALIZING';
   private readonly startTime = Date.now();
@@ -27,11 +36,48 @@ export class RuntimeLifecycle {
   private readonly healthChecks = new Map<string, HealthCheck>();
   private failureReason?: Error;
   private signalRegistered = false;
+  private attachedContainer?: ServiceContainer;
+  private shutdownPromise?: Promise<void>;
 
   constructor(registerSignals = false) {
     if (registerSignals) {
       this.registerSignalHandlers();
     }
+  }
+
+  attachContainer(container: ServiceContainer): void {
+    this.attachedContainer = container;
+  }
+
+  getContainer(): ServiceContainer | undefined {
+    return this.attachedContainer;
+  }
+
+  private transitionTo(newState: RuntimeState): void {
+    const current = this.state;
+    if (current === newState) return;
+
+    // Validate legal transitions:
+    // INITIALIZING -> READY, FAILED
+    // READY -> DRAINING, FAILED
+    // DRAINING -> TERMINATING
+    // TERMINATING -> TERMINATED
+    // FAILED -> TERMINATED
+    const legalTransitions: Record<RuntimeState, RuntimeState[]> = {
+      INITIALIZING: ['READY', 'FAILED', 'TERMINATING'],
+      READY: ['DRAINING', 'FAILED'],
+      DRAINING: ['TERMINATING', 'FAILED'],
+      TERMINATING: ['TERMINATED'],
+      FAILED: ['TERMINATED'],
+      TERMINATED: [],
+    };
+
+    const allowed = legalTransitions[current] || [];
+    if (!allowed.includes(newState)) {
+      throw new IllegalStateTransitionError(current, newState);
+    }
+
+    this.state = newState;
   }
 
   registerSignalHandlers(): void {
@@ -68,16 +114,18 @@ export class RuntimeLifecycle {
   }
 
   markReady(): void {
-    if (this.state === 'FAILED' || this.state === 'TERMINATING' || this.state === 'TERMINATED') {
-      throw new Error(`Cannot mark runtime READY from state: ${this.state}`);
-    }
-    this.state = 'READY';
+    this.transitionTo('READY');
     logger.info('Runtime platform marked READY and listening for operational traffic.');
   }
 
   markFailed(error: Error): void {
-    this.state = 'FAILED';
     this.failureReason = error;
+    try {
+      this.transitionTo('FAILED');
+    } catch {
+      // If already in an un-transitionable state, force FAILED for diagnostic inspection
+      this.state = 'FAILED';
+    }
     logger.error('Runtime platform entered FAILED state:', error);
   }
 
@@ -87,6 +135,14 @@ export class RuntimeLifecycle {
 
   isStarting(): boolean {
     return this.state === 'INITIALIZING';
+  }
+
+  isIngressOpen(): boolean {
+    return this.state === 'READY';
+  }
+
+  isDraining(): boolean {
+    return this.state === 'DRAINING';
   }
 
   async isReady(): Promise<boolean> {
@@ -135,41 +191,66 @@ export class RuntimeLifecycle {
   }
 
   async shutdown(timeoutMs = 15000): Promise<void> {
-    if (this.state === 'DRAINING' || this.state === 'TERMINATING' || this.state === 'TERMINATED') {
+    if (this.shutdownPromise) {
+      return this.shutdownPromise;
+    }
+
+    if (this.state === 'TERMINATED') {
       return;
     }
 
-    this.state = 'DRAINING';
-    logger.info('Runtime entering DRAINING state: stopping ingress of new work...');
+    const shutdownStart = Date.now();
 
-    this.state = 'TERMINATING';
-    logger.info('Executing registered shutdown handlers...');
-
-    let timer: NodeJS.Timeout | undefined;
-    const timeoutPromise = new Promise<void>((_, reject) => {
-      timer = setTimeout(() => reject(new Error('Graceful shutdown timeout exceeded')), timeoutMs);
-    });
-
-    const shutdownAction = async (): Promise<void> => {
-      // Execute in reverse order of registration (LIFO)
-      for (const handler of [...this.shutdownHandlers].reverse()) {
-        try {
-          await handler();
-        } catch (err) {
-          logger.error('Error in shutdown handler:', err as Error);
-        }
+    this.shutdownPromise = (async () => {
+      // Step 1: Ingress shutoff (DRAINING)
+      if (this.state === 'READY') {
+        this.transitionTo('DRAINING');
+        logger.info('Runtime entered DRAINING state: operational ingress shut off.');
       }
-    };
 
-    try {
-      await Promise.race([shutdownAction(), timeoutPromise]);
-      logger.info('All shutdown handlers completed cleanly.');
-    } catch (err) {
-      logger.warn('Forced shutdown due to timeout or unhandled handler error:', { error: String(err) });
-    } finally {
-      if (timer) clearTimeout(timer);
-      this.state = 'TERMINATED';
-    }
+      // Step 2: Termination preparation
+      this.transitionTo('TERMINATING');
+      logger.info('Runtime entering TERMINATING state: executing shutdown handlers and stopping container services...');
+
+      let timer: NodeJS.Timeout | undefined;
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Graceful shutdown timeout exceeded')), timeoutMs);
+      });
+
+      const shutdownAction = async (): Promise<void> => {
+        // Execute registered shutdown handlers in reverse order (LIFO)
+        for (const handler of [...this.shutdownHandlers].reverse()) {
+          try {
+            await handler();
+          } catch (err) {
+            logger.error('Error in shutdown handler:', err as Error);
+          }
+        }
+
+        // Stop attached service container in reverse topological order
+        if (this.attachedContainer) {
+          try {
+            await this.attachedContainer.stopAll();
+          } catch (err) {
+            logger.error('Error stopping attached service container:', err as Error);
+          }
+        }
+      };
+
+      try {
+        await Promise.race([shutdownAction(), timeoutPromise]);
+        logger.info('All shutdown handlers and container services completed cleanly.');
+      } catch (err) {
+        logger.warn('Forced shutdown due to timeout or unhandled handler error:', { error: String(err) });
+      } finally {
+        if (timer) clearTimeout(timer);
+        const duration = Date.now() - shutdownStart;
+        runtimeMetrics.recordShutdownDuration(duration);
+        this.transitionTo('TERMINATED');
+      }
+    })();
+
+    return this.shutdownPromise;
   }
 }
 

@@ -13,6 +13,7 @@ const testFiles = [
   'packages/core/tests/config.test.ts',
   'packages/core/tests/money.test.ts',
   'packages/core/tests/runtime.test.ts',
+  'packages/core/tests/runtime-integration.test.ts',
   'packages/core/tests/container.test.ts',
   'packages/core/tests/health.test.ts',
   'packages/core/tests/http.test.ts',

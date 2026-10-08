@@ -4,8 +4,6 @@ const path = require("node:path");
 const { URL } = require("node:url");
 const crypto = require("node:crypto");
 
-const PORT = 3000;
-const HOST = "0.0.0.0";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
@@ -301,110 +299,137 @@ async function staticFile(req, res, url) {
 }
 
 let core = null;
+let config = null;
 
 const server = http.createServer(async (req, res) => {
   const start = Date.now();
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-  const correlationId = core
-    ? core.sanitizeCorrelationId(req.headers['x-correlation-id'] || req.headers['x-request-id'])
-    : (crypto.randomUUID ? crypto.randomUUID() : id("corr"));
+  const correlationId = core.sanitizeCorrelationId(req.headers['x-correlation-id'] || req.headers['x-request-id']);
   res.setHeader("x-correlation-id", correlationId);
 
   const executeHandler = async () => {
-    if (core) {
-      core.runtimeMetrics.incrementActiveRequests();
-    }
+    core.runtimeMetrics.incrementActiveRequests();
     try {
-      // Phase 2 Health Endpoints
+      // 1. Health Endpoints (Always accessible during live process)
       if (url.pathname === "/health/live") {
-        if (core) {
-          const { statusCode, body } = core.handleLiveness(core.runtime);
-          return json(res, statusCode, body);
-        }
-        return json(res, 200, { status: "ok", state: "READY", timestamp: new Date().toISOString() });
+        const { statusCode, body } = core.handleLiveness(core.runtime);
+        return json(res, statusCode, body);
       }
 
       if (url.pathname === "/health/ready") {
-        if (core) {
-          const { statusCode, body } = await core.handleReadiness(core.runtime, core.defaultHealthRegistry, "0.1.0");
-          return json(res, statusCode, body);
-        }
-        return json(res, 200, { status: "ok", state: "READY", timestamp: new Date().toISOString(), checks: { dataStore: true } });
+        const { statusCode, body } = await core.handleReadiness(core.runtime, core.defaultHealthRegistry, config.appVersion);
+        return json(res, statusCode, body);
       }
 
       if (url.pathname === "/health/startup") {
-        if (core) {
-          const { statusCode, body } = core.handleStartup(core.runtime, "0.1.0");
-          return json(res, statusCode, body);
-        }
-        return json(res, 200, { status: "ok", state: "READY", timestamp: new Date().toISOString() });
+        const { statusCode, body } = core.handleStartup(core.runtime, config.appVersion);
+        return json(res, statusCode, body);
       }
 
       if (url.pathname === "/health/metrics") {
-        if (core) {
-          return json(res, 200, core.runtimeMetrics.getSnapshot());
-        }
-        return json(res, 200, { totalRequests: 0 });
+        return json(res, 200, core.runtimeMetrics.getSnapshot());
       }
 
+      // 2. Ingress Check (DEF-011): Ingress is open ONLY when runtime state is READY
+      if (!core.runtime.isIngressOpen()) {
+        res.setHeader("Connection", "close");
+        res.setHeader("Retry-After", "5");
+        return error(res, 503, "Server is draining or shutting down. Please retry shortly.");
+      }
+
+      // 3. Operational Request Dispatch
       if (url.pathname.startsWith("/erp-api/")) {
         url.pathname = url.pathname.replace(/^\/erp-api(?=\/|$)/, "/api");
         const current = apiQueue.then(() => api(req, res, url));
         apiQueue = current.catch(() => {});
         await current;
+      } else {
+        await staticFile(req, res, url);
       }
-      else await staticFile(req, res, url);
     } catch (err) {
       if (!(err instanceof RequestError)) console.error(err);
       const status = err instanceof RequestError ? err.status : 500;
       error(res, status, err instanceof RequestError ? err.message : "Internal server error");
     } finally {
-      if (core) {
-        core.runtimeMetrics.decrementActiveRequests();
-        core.runtimeMetrics.recordRequest(req.method || 'GET', res.statusCode || 200, Date.now() - start);
-      }
+      core.runtimeMetrics.decrementActiveRequests();
+      core.runtimeMetrics.recordRequest(req.method || 'GET', res.statusCode || 200, Date.now() - start);
     }
   };
 
-  if (core && core.ExecutionContext) {
-    await core.ExecutionContext.run({ correlationId }, executeHandler);
-  } else {
-    await executeHandler();
-  }
+  await core.ExecutionContext.run({ correlationId }, executeHandler);
 });
 
 async function startServer() {
   const startupStart = Date.now();
-  await ensureData();
 
-  try {
-    core = await import('../../../packages/core/dist/index.js');
-    core.defaultHealthRegistry.register({
-      name: 'dataStore',
-      isCritical: true,
-      check: async () => {
-        try {
-          await fs.access(DATA_FILE);
-          return true;
-        } catch {
-          return false;
-        }
+  // Mandatory Step 1: Load Phase 2 Platform Runtime (DEF-009)
+  // No fallback: failure to load mandatory platform core aborts startup immediately.
+  core = await import('../../../packages/core/dist/index.js');
+
+  // Mandatory Step 2: Resolve & Validate Configuration (DEF-010)
+  // Central typed configuration is the sole source of runtime parameters.
+  config = core.parseConfig(process.env);
+
+  // Mandatory Step 3: Register Platform Services in ServiceContainer (DEF-012)
+  const container = new core.ServiceContainer();
+  core.runtime.attachContainer(container);
+
+  container.register({
+    name: "dataStore",
+    dependencies: [],
+    async initialize() {
+      await ensureData();
+    },
+    async shutdown() {
+      await Promise.all([writeQueue, apiQueue]);
+    }
+  });
+
+  container.register({
+    name: "httpServer",
+    dependencies: ["dataStore"],
+    async initialize() {
+      await new Promise((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(config.port, config.host, () => {
+          server.removeListener("error", reject);
+          console.log(`Universal ERP foundation running at http://${config.host}:${config.port} (${config.env})`);
+          resolve();
+        });
+      });
+    },
+    async shutdown() {
+      await new Promise((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // Step 4: Register Health Probes
+  core.defaultHealthRegistry.register({
+    name: "dataStore",
+    isCritical: true,
+    check: async () => {
+      try {
+        await fs.access(DATA_FILE);
+        return true;
+      } catch {
+        return false;
       }
-    });
-    core.runtime.registerShutdownHandler(() => {
-      return new Promise((resolve) => server.close(() => resolve()));
-    });
-    core.runtime.registerSignalHandlers();
-    core.runtime.markReady();
-    core.runtimeMetrics.recordStartupDuration(Date.now() - startupStart);
-  } catch (err) {
-    console.warn("Core runtime dynamic import skipped:", err.message);
-  }
+    }
+  });
 
-  server.listen(PORT, HOST, () => console.log(`ERP foundation running at http://${HOST}:${PORT}`));
+  // Step 5: Register Signal Handlers & Start Services
+  core.runtime.registerSignalHandlers();
+  await container.startAll();
+
+  // Step 6: Mark Runtime READY (Opens Ingress)
+  core.runtime.markReady();
+  core.runtimeMetrics.recordStartupDuration(Date.now() - startupStart);
 }
 
 startServer().catch((err) => {
-  console.error("Unable to initialize data store or runtime", err);
+  console.error("FATAL: Platform runtime initialization failed:", err);
+  if (core && core.runtime) {
+    core.runtime.markFailed(err instanceof Error ? err : new Error(String(err)));
+  }
   process.exit(1);
 });
